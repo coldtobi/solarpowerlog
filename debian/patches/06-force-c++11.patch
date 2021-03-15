@@ -1,0 +1,20 @@
+Description: Fix FTBFS with gcc-11
+ Solarpowerlog is not ready to be compiled with C++17, so force C++11.
+Author: Tobias Frost <tobi@debian.org>
+Forwarded: no
+Bug-Debian: https://bugs.debian.org/984340
+Last-Update: 2021-03-15
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: solarpowerlog-0.24/configure.ac
+===================================================================
+--- solarpowerlog-0.24.orig/configure.ac
++++ solarpowerlog-0.24/configure.ac
+@@ -10,6 +10,7 @@ AC_CONFIG_MACRO_DIR([m4])
+ LT_INIT
+ 
+ CPPFLAGS+=" -Wall -Wextra"
++CXXFLAGS+=" -std=c++11"
+ 
+ # we want this header to be created.
+ AC_CONFIG_HEADERS(src/config.h)

@@ -4,3 +4,4 @@
 04-libconfig1.5.patch
 05-gcc7.patch
 0006-Fix-build-with-Boost-1.67.patch
+06-force-c++11.patch
