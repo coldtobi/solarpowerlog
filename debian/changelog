@@ -1,4 +1,4 @@
-solarpowerlog (0.24-9) UNRELEASED; urgency=medium
+solarpowerlog (0.24-9) unstable; urgency=medium
 
   [ Debian Janitor ]
   * Use secure copyright file specification URI.
@@ -9,7 +9,7 @@ solarpowerlog (0.24-9) UNRELEASED; urgency=medium
   [ Tobias Frost ]
   * Force C+11, as C++17 will make it FTBFS. (Closes: #984340)
 
- -- Tobias Frost <tobi@debian.org>  Mon, 15 Mar 2021 17:59:07 +0100
+ -- Tobias Frost <tobi@debian.org>  Fri, 15 Oct 2021 18:14:39 +0200
 
 solarpowerlog (0.24-8) unstable; urgency=medium
 
