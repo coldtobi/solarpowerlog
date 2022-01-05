@@ -3,12 +3,6 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CXXFLAGS = $(BOOST_CPPFLAGS)
 
-EXTRA_DIST = scripts/GenConstHash.pl
-
-# can be regenerated at build time, but must be distributed
-# in case someonw builds from read only sources.
-CLEANFILES = configuration/ILogger_hashmacro.h
-
 bin_PROGRAMS = solarpowerlog
 
 solarpowerlog_SOURCES = configuration/CConfigHelper.cpp \
@@ -151,11 +145,3 @@ LIBS = $(DEPS_LIBS)
 # add the search path to the linker path
 #solarpowerlog_LDFLAGS = $(pwd)
 
-dist-hook:
-	chmod u+w $(distdir)/configuration/ILogger_hashmacro.h
-	perl $(distdir)/scripts/GenConstHash.pl -l 96 -r LOG_SA_HASH -t $(distdir)/configuration/ILogger_hashmacro.h
-
-$(srcdir)/configuration/ILogger_hashmacro.h: $(srcdir)/scripts/GenConstHash.pl
-	perl $(srcdir)/scripts/GenConstHash.pl -l 96 -r LOG_SA_HASH -t $@
-
-all: $(srcdir)/configuration/ILogger_hashmacro.h
