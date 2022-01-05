@@ -68,9 +68,7 @@ int ICommand::getCmd() const
 }
 
 const boost::any ICommand::findData(const std::string &key) const
-		throw(std::invalid_argument)
 {
-
 	std::map<std::string, boost::any>::const_iterator it = dat.find(key);
 	if (it != dat.end()) {
 		return (*it).second;

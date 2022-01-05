@@ -553,12 +553,7 @@ private:
     time_t sa_max_time_suppress_;
 
 	/// Contains ths state-aware-logging data
-	/// TODO with C++11 unordered_map would be faster, while theres the ifdef its untested.
-#if __cplusplus < 201103L
-	std::map<uint32_t,struct log_stateaware_info> sa_info;
-#else
 	std::unordered_map<uint32_t,struct log_stateaware_info> sa_info;
-#endif
 };
 
 #endif // HAVE_LIBLOG4CXX

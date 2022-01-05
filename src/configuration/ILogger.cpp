@@ -178,11 +178,7 @@ void ILogger::Log_sa(const int32_t hash, std::stringstream &ss)
     }
 
     CMutexAutoLock cma(*this);
-#if __cplusplus < 201103L
-    std::map<uint32_t, struct log_stateaware_info>::iterator it;
-#else
-	std::unordered_map<uint32_t, struct log_stateaware_info>::iterator it;
-#endif
+    std::unordered_map<uint32_t, struct log_stateaware_info>::iterator it;
     it = sa_info.find(hash);
     if (it != sa_info.end()) {
         // check for suppression criteria.

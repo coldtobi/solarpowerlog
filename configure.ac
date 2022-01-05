@@ -9,7 +9,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 LT_INIT
 
-CPPFLAGS+=" -Wall -Wextra -std=c++11"
+CPPFLAGS+=" -Wall -Wextra"
 
 # we want this header to be created.
 AC_CONFIG_HEADERS(src/config.h)
