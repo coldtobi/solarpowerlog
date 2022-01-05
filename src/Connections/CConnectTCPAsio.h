@@ -38,6 +38,7 @@ Copyright (C) 2009-2012 Tobias Frost
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/streambuf.hpp>
+#include <boost/asio/io_service.hpp>
 #include <semaphore.h>
 
 #include "interfaces/IConnect.h"

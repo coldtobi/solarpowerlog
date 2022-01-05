@@ -43,6 +43,7 @@ Copyright (C) 2010-2012 Tobias Frost
 
 #include <boost/asio/serial_port.hpp>
 #include <boost/asio/streambuf.hpp>
+#include <boost/asio/io_service.hpp>
 #include <semaphore.h>
 
 #include "interfaces/IConnect.h"
