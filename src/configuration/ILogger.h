@@ -557,7 +557,7 @@ private:
 #if __cplusplus < 201103L
 	std::map<uint32_t,struct log_stateaware_info> sa_info;
 #else
-	std::unordered_map<int32_t,struct log_stateaware_info> sa_info;
+	std::unordered_map<uint32_t,struct log_stateaware_info> sa_info;
 #endif
 };
 
