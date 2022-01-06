@@ -1,5 +1,5 @@
-News in Version 0.22
+News in Version 0.25
 
-- The default setting for the CSVWriter "flush_file_buffer_immediatly" is now
-false, as this setting needs only be set in special circumstances and even might
-be less good performing. 
+- New Filter "DBWriter" that can log to a database.
+  see the examples for how to use it. 
+
