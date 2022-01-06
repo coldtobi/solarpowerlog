@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -47,13 +47,12 @@ class ICommand;
 class ICommandTarget;
 class CTimedWork;
 
-
 /** This class implements the work scheduler:
  *
  * Objects derived from CommandTarget can schedule work to be done:
  *
  * call again later:
- * (when they are not able to complete it immediatly)
+ * (when they are not able to complete it immediately)
  *
  * call again at ....
  * (when they expect to do some work in some specific time
@@ -131,7 +130,7 @@ private:
 	sem_t semaphore;
 
 	/// stores for the mainscheduler the list of broadcast subscribers
-	std::set<ICommandTarget*> *broadcast_subscribers;
+	std::set<ICommandTarget*> broadcast_subscribers;
 
 protected:
 	/// Mutex to protect against concurrent accesses.

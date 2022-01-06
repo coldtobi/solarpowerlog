@@ -1,26 +1,25 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
-*/
+ */
 
-/*
- * CHTMLWriter.cpp
+/** \file CHTMLWriter.cpp
  *
  *  Created on: Dec 20, 2009
  *      Author: tobi
@@ -41,6 +40,7 @@ Copyright (C) 2009-2012 Tobias Frost
 
 #include "configuration/Registry.h"
 #include "configuration/CConfigHelper.h"
+#include "configuration/ConfigCentral/CConfigCentral.h"
 #include "interfaces/CWorkScheduler.h"
 
 #include "Inverters/Capabilites.h"
@@ -51,16 +51,104 @@ Copyright (C) 2009-2012 Tobias Frost
 #include "DataFilters/HTMLWriter/formatter/IFormater.h"
 #include <string>
 
-// helper, because we do not want the multi map for the formatters sorted.
 
+static const char *Description_HTMLWriter_Intro =
+"HTMLWriter Logger\n"
+"As the name suggests already, this logger creates HTML file which then can be "
+"served by a web server. To separate presentation from program logic, the page "
+"will be generated using a template, so the look and feel can be freely customized.\n"
+"The template library used for this is ctemplate: "
+"https://libctemplate.sourceforge.net. This site has also some documentation "
+"about the features and the syntax it expects in the template files. "
+"Please see the example template for an idea how to create your own. "
+"The logger is designed to work with the CVSLogger, so the HTML file can "
+"utilize this as well. "
+"To get a HTMLWriter, \"type\" below needs to "
+"be set to "  FILTER_HTMLWRITER  " (as indicated below.)";
+
+static const char *Description_HTMLWriter_writeevery =
+"Defines how often the html page should be written in seconds. If the value "
+"is unset (or the default value), the timing will derived from the timing of the data source: "
+"The page will then written in the same interval as the inverter queries the data.\n"
+"Note: If the source does not report the update frequency and this parameter is unset/0, "
+"300 seconds is used instead.";
+
+static const char *Description_HTMLWriter_htmlfile =
+"The filename where to store the generated html file. "
+"The parameter may contain a \"%s\", which will be replaced by the current date "
+"in the format YYYY-MM-DD, generating a new file every day.";
+
+static const char *Description_HTMLWriter_generatetemplate =
+"To assist generating your own template files, the HTML writer can generated "
+"a template showing all the parameters and their names which can be used in "
+"writing the template.\n"
+"Set this parameter to true to turn the feature on.";
+
+static const char *Description_HTMLWriter_templatefile =
+"This parameter sets the filename where the generated template will be stored. "
+"Note that this parameter only defines the base of the filename, the program will "
+"append the HTMLWriter's name and \".hmtl\" to it.";
+
+static const char *Description_HTMLWriter_generatetemplate_dir =
+"This parameter sets the directory where the template generator should store "
+"its output.";
+
+static const char *Description_HTMLWriter_Formatter =
+"Sometimes the raw data in the Capabilities needs to be modified to be suitable "
+"for the HTMLWriter. For this several small helper exists. "
+"Those helper are declared with the formatters section.\n"
+"The example below shows the syntax of the array.\n"
+"The first column specifies the Capability the formatters should act on,\n"
+"the second column specify the formatter to be used,\n"
+"the third column allows to set the result to another template variable, if unset"
+"the result will be reported with the capability name in column 1 instead, "
+"overwritting that information.\n"
+"The other columns are parameters to the formatter, see below for details."
+;
+
+static const char *Description_HTMLWriter_Formatter_example =
+"(\n"
+"##[ what_capability,\tformating_operation,\twhere_to_store,\tparameters ],\n"
+"# [ \"CSVDumper::Filename\", \"stripwebroot\", \"\" , \"/var/www\" ],\n"
+"# [ \"CSVDumper::LoggedCaps\", \"searchcvsentry\", \"powernow\", \"Current Grid Feeding Power\" ],\n"
+"# [ \"CSVDumper::LoggedCaps\", \"searchcvsentry\", \"kwhtoday\", \"Energy produced today (kWh)\" ]\n"
+"#)";
+
+static const char* Description_HTMWriter_Frmter_searchwebroot =
+"The formatter searchwebroot modifies a pathname in a capability to strip any "
+"prefix from this path. As the name suggest this was design to aid serving "
+"a datafiles, for example a CVS file from the CVS Logger "
+"This is necessary as the URL-path will be different "
+"from the complete filename stored on the server.\n"
+"The searchwebroot formatter takes one parameter: the component of the path "
+"to be removed. It has a default value of /var/www. "
+"If it cannot find this component, it will not modify the path and report an "
+"error to the logs.\n."
+"As an example, the rule below will reformat the path /var/www/spl/<file> "
+"to the relative one, which can be served from the webserver as "
+"http://<domain>/spl/<file>.\n"
+"example: [ \"CSVDumper::Filename\", \"stripwebroot\", \"\" , \"/var/www\" ]";
+
+static const char* Description_HTMLWriter_Frmter_searchCVSentry =
+"The formatter searchcvsentry works in conjuntion with the CVS Logger to allow "
+"the template to easier find the data it is interested in the CVS file.\n"
+"It enumerates in which field the Capability is currently logged and stores this "
+"information -- the column the data is in -- in the given template variable.\n"
+"Usually it will always act on CSVDumper::LoggedCaps, as this Capability is "
+"reported from the CVS Logger. "
+"The parameter contains the name of the capability to-be-looked-for.\n"
+"example:\n"
+"[ \"CSVDumper::LoggedCaps\", \"searchcvsentry\", \"powernow\", \"Current Grid Feeding Power\" ]\n";
+
+// helper, because we do not want the multi map for the formatters sorted.
+#warning unused, remove after resolving the switch to another container (see warning below)
 struct unsortedmultimap
 {
-	//bool operator ()( const std::vector<std::string>,  const std::vector<std::string>)  const {
-	bool operator ()(const std::string &, const std::string &) const
-	{
-
-		return false;
-	}
+    //bool operator ()( const std::vector<std::string>,  const std::vector<std::string>)  const {
+    bool operator ()(const std::string &, const std::string &) const
+    {
+        return false;
+    }
 };
 
 /// local helpers: Bundle the cyclic-event calculation here...
@@ -73,38 +161,31 @@ void CHTMLWriter::ScheduleCyclicEvent(enum Commands cmd)
 	CCapability *c;
 	struct timespec ts;
 
-    if (derivetiming) {
+    if (_cfg_writevery <= 0.001 ) {
         c = GetConcreteCapability(CAPA_INVERTER_QUERYINTERVAL);
         if (c && CValue<float>::IsType(c->getValue())) {
             CValue<float> *v = (CValue<float> *)c->getValue();
             ts.tv_sec = v->Get();
             ts.tv_nsec = ((v->Get() - ts.tv_sec) * 1e9);
         } else {
-            LOGINFO(logger,
+            LOGINFO_SA(logger, __COUNTER__,
                 "INFO: The associated inverter does not specify the "
-                "queryinterval. Defaulting to 300 seconds. Consider specifying writeevery");
+                "interval of its querie. Defaulting to 300 seconds. Consider specifying the HTMLWriter's parameter writeevery");
             ts.tv_sec = 300;
             ts.tv_nsec = 0;
         }
-    } else if (writeevery > 0.0001) {
-        ts.tv_sec = writeevery;
-        ts.tv_nsec = ((long)(writeevery - ts.tv_sec)) * 1e9;
     } else {
-        // writevery 0.
-        ts.tv_sec = 300;
-        ts.tv_nsec = 0;
+        ts.tv_sec = _cfg_writevery;
+        ts.tv_nsec = ((long)(_cfg_writevery - ts.tv_sec)) * 1e9;
     }
-
 	Registry::GetMainScheduler()->ScheduleWork(ncmd, ts);
 }
 
 CHTMLWriter::CHTMLWriter(const string & name, const string & configurationpath) :
 	IDataFilter(name, configurationpath), updated(false), datavalid(false)
 {
-
-	writeevery = 0;
-	derivetiming = 0;
-	generatetemplate = 0;
+    _cfg_writevery = 0;
+	_cfg_generate_template = false;
 	updated = 0;
 	datavalid = 0;
 
@@ -134,53 +215,23 @@ CHTMLWriter::~CHTMLWriter()
 
 bool CHTMLWriter::CheckConfig()
 {
-	bool fail = false;
-	CConfigHelper hlp(configurationpath);
+#warning this is incomplete! does not check the reformatter etc.
 
-	// Get writeevery, if not existant, remember that for later extrapolation out
-	// of the parents Capability.
-	if (hlp.CheckConfig("writeevery", libconfig::Setting::TypeFloat, true)) {
-		if (!hlp.GetConfig("writeevery", writeevery, (float) 300.0)) {
-			derivetiming = true;
-		}
-		if (writeevery < 0.0) {
-			LOGERROR(logger, "Configuration Error: writeevery must be positive.");
-			fail = true;
-		} else if (writeevery < 0.00001) {
-			LOGERROR(logger, "Configuration Error: writeevery=0 not yet implemented.");
-			fail = true;
-		}
+	std::auto_ptr<CConfigCentral> cc(getConfigCentralObject(NULL));
 
-	} else {
-		fail = true;
-	}
+	bool fail = cc->CheckConfig(logger, configurationpath);
 
-	if (hlp.CheckConfig("generate_template", libconfig::Setting::TypeBoolean,
-			true) && hlp.CheckConfig("generate_template_dir",
-			libconfig::Setting::TypeString, true)) {
-		hlp.GetConfig("generate_template", generatetemplate, false);
-		hlp.GetConfig("generate_template_dir", generatetemplatedir,
-				std::string("/tmp/"));
+    if (!fail && !base) {
+        LOGERROR(logger, "Cannot find datassource with the name "
+            << _datasource);
+        fail = true;
+    }
 
-		if (generatetemplatedir.size()
-				&& generatetemplatedir[generatetemplatedir.size() - 1] != '/') {
-			generatetemplatedir += '/';
-		}
-	} else {
-		fail = true;
-	}
-
-	if (hlp.CheckConfig("htmlfile", libconfig::Setting::TypeString)) {
-		hlp.GetConfig("htmlfile", htmlfile);
-	} else {
-		fail = true;
-	}
-
-	if (hlp.CheckConfig("templatefile", libconfig::Setting::TypeString)) {
-		hlp.GetConfig("templatefile", templatefile);
-	} else {
-		fail = true;
-	}
+    size_t s;
+    s = _cfg_gen_template_dir.length();
+    if (s  && _cfg_gen_template_dir[s - 1] != '/') {
+        _cfg_gen_template_dir += '/';
+    }
 
 	return !fail;
 }
@@ -250,26 +301,18 @@ void CHTMLWriter::ExecuteCommand(const ICommand *cmd)
 		CCapability *c;
 
 		// Subscribe to this->base inverter, all the required ones...
-		if (cfghlp.GetConfig("datasource", tmp)) {
-			base = Registry::Instance().GetInverter(tmp);
-			if (base) {
-				c = base->GetConcreteCapability(CAPA_CAPAS_UPDATED);
-				assert(c); // this is required to have....
-				c->Subscribe(this);
+		assert(base);
+        c = base->GetConcreteCapability(CAPA_CAPAS_UPDATED);
+        assert(c); // this is required to have....
+        c->Subscribe(this);
 
-				c = base->GetConcreteCapability(CAPA_CAPAS_REMOVEALL);
-				assert(c);
-				c->Subscribe(this);
+        c = base->GetConcreteCapability(CAPA_CAPAS_REMOVEALL);
+        assert(c);
+        c->Subscribe(this);
 
-				c = base->GetConcreteCapability(CAPA_INVERTER_DATASTATE);
-				assert(c);
-				c->Subscribe(this);
-			} else {
-				LOGWARN(logger,
-						"Warning: Could not find data source to connect. Filter: "
-						<< configurationpath << "." << name);
-			}
-		}
+        c = base->GetConcreteCapability(CAPA_INVERTER_DATASTATE);
+        assert(c);
+        c->Subscribe(this);
 
 		ScheduleCyclicEvent(CMD_CYCLIC);
 	}
@@ -301,11 +344,9 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 		return;
 	}
 
-	if (generatetemplate) {
+	if (_cfg_generate_template) {
 		std::string s;
-		CConfigHelper cfg(configurationpath);
-		cfg.GetConfig("name", s);
-		s = generatetemplatedir + s + ".html";
+		s = _cfg_gen_template_dir + _cfg_name + ".html";
 		fs.open(s.c_str(), fstream::out | fstream::trunc | fstream::binary);
 
 #ifdef HAVE_WIN32_API
@@ -325,7 +366,10 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 	}
 
 	// Get the configuration to the formatting specs and map them
-	// TODO make this only once....
+#warning make this only once; it is also not config-checked!
+#warning note, this multimap is sorted; switch to other container like vector to avoid this \
+	 as the formatters should be "ordered" -- see the unused struct unsortedmultimap above
+
 	multimap<std::string, std::vector<std::string> >
 			formattermap;
 
@@ -375,7 +419,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 	// TODO FIXME currently, there is only one. So we make this dynamic later.
 
 	tmpl_looplist = TMPL_add_var(tmpl_looplist, "iteration", "0", NULL);
-	if (generatetemplate) {
+	if (_cfg_generate_template) {
 		fs << "<tr><td> iteration </td><td> " << "0" << " </td>\n";
 	}
 
@@ -419,7 +463,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 
 				if (!frmt->Format(value, value, (*it).second)) {
 					LOGERROR(logger,"Could not reformat " << cappair.first <<
-							": Formater reported error.");
+							": Formatter reported error.");
 				}
 
 				// check if we should store the result to another template
@@ -429,7 +473,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 					tmpl_looplist = TMPL_add_var(tmpl_looplist,
 							(*it).second[1].c_str(), value.c_str(), NULL);
 
-					if (this->generatetemplate) {
+					if (_cfg_generate_template) {
 						fs << "<tr><td> " << (*it).second[1].c_str() <<
 								"<br/><p style=\"font-size:x-small\">reformatted from "
 								<< templatename <<
@@ -451,7 +495,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 		tmpl_looplist = TMPL_add_var(tmpl_looplist, templatename.c_str(),
 				value.c_str(), NULL);
 
-		if (this->generatetemplate) {
+		if (_cfg_generate_template) {
 			fs << "<tr><td> " << cappair.first << " </td><td> " << value
 					<< " </td>\n";
 		}
@@ -466,10 +510,9 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 	// now adding all the stuff to the main list.
 	tmpl_list = TMPL_add_loop(tmpl_list, "inverters", tmpl_loop);
 
-	if (generatetemplate) {
-		fs
-				<< "<tr><th>HTMWriter Capabilities</th><th>(these are outside of the loop)</th></tr>"
-				<< endl;
+	if (_cfg_generate_template) {
+		fs << "<tr><th>HTMWriter Capabilities</th>"
+		      "<th>(these are outside of the loop)</th></tr>" << endl;
 	}
 	map<string, CCapability*>::const_iterator it;
 	for (it = CapabilityMap.begin(); it != CapabilityMap.end(); it++) {
@@ -479,7 +522,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 		tmpl_list = TMPL_add_var(tmpl_list, cappair.first.c_str(),
 				tmpstring.c_str(), NULL);
 
-		if (this->generatetemplate) {
+		if (_cfg_generate_template) {
 			fs << "<tr><td> " << cappair.first << " </td><td> " << tmpstring
 					<< " </td>\n";
 		}
@@ -490,7 +533,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 	tmpl_list = TMPL_add_var(tmpl_list, "spl_version", PACKAGE_VERSION, NULL);
 
 	// template assistance is now done, so close the file.
-	if (generatetemplate) {
+	if (_cfg_generate_template) {
 		fs << "</table></body></html>";
 		fs.close();
 	}
@@ -510,16 +553,17 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 #warning Note: opem_memstream not available on this platform. Will not be able to tell you template errors
 #endif
 	// generate filename of the output file
-	if (htmlfile.find("%s") != std::string::npos) {
+	if (_cfg_html_file.find("%s") != std::string::npos) {
 		boost::gregorian::date today(boost::gregorian::day_clock::local_day());
-		char buf[htmlfile.size() + 10]; //note: the %s will be removed, so +10 is enough.
+		char buf[_cfg_html_file.size() + 10]; //note: the %s will be removed, so +10 is enough.
 		int year = today.year();
 		int month = today.month();
 		int day = today.day();
 
-		snprintf(buf, sizeof(buf) - 1, "%s%04d-%02d-%02d%s", htmlfile.substr(0,
-				htmlfile.find("%s")).c_str(), year, month, day,
-				htmlfile.substr(htmlfile.find("%s") + 2, string::npos).c_str());
+        snprintf(buf, sizeof(buf) - 1, "%s%04d-%02d-%02d%s",
+            _cfg_html_file.substr(0, _cfg_html_file.find("%s")).c_str(), year,
+            month, day, _cfg_html_file.substr(_cfg_html_file.find("%s") + 2,
+            string::npos).c_str());
 
 		out = fopen(buf, "w+");
 		if (out == 0) {
@@ -527,13 +571,13 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 		}
 
 	} else {
-		out = fopen(htmlfile.c_str(), "w+");
+		out = fopen(_cfg_html_file.c_str(), "w+");
 		if (out == NULL) {
-			LOGERROR(logger, "Could not open filename "<< htmlfile);
+			LOGERROR(logger, "Could not open filename "<< _cfg_html_file);
 		}
 	}
 
-	if (out && -1 == TMPL_write(templatefile.c_str(), NULL, NULL, tmpl_list,
+	if (out && -1 == TMPL_write(_cfg_template_file.c_str(), NULL, NULL, tmpl_list,
 			out, errfile)) {
 		// error while writing. lets examine errfile.
 		// we need first to close the file to update ptr and size.
@@ -545,7 +589,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 #else
 		// esp. for the cygwin 1.5 port, we cannot tell the reason why it happened.
 		// patches are welcome to open a temporary file on disk instead and then
-		// (when cagwin 1.7 comes out, this is no longer an issue: They implemented
+		// (when cygwin 1.7 comes out, this is no longer an issue: They implemented
 		// the GNU extended syscall)
 		LOGERROR(logger, "Error while writing html file (template error)");
 #endif
@@ -554,7 +598,7 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 		LOGTRACE(logger, "Done writing HTML File. Wrote " << ftell(out) << " Bytes");
 	}
 
-	// cleanup.
+	// cleanup./
 	if (tmpl_list)
 		TMPL_free_varlist(tmpl_list);
 	if (out)
@@ -569,13 +613,48 @@ void CHTMLWriter::DoCyclicCmd(const ICommand *)
 
 void CHTMLWriter::CheckOrUnSubscribe(bool subscribe)
 {
-	if (!base)
-		return;
-
+    assert(base);
 	CCapability *cap = base->GetConcreteCapability(CAPA_INVERTER_DATASTATE);
 	if (cap)
 		cap->SetSubscription(this, subscribe);
-
 }
+
+CConfigCentral* CHTMLWriter::getConfigCentralObject(CConfigCentral *parent)
+{
+    if (!parent) parent = new CConfigCentral;
+
+    (*parent)
+    (NULL, Description_HTMLWriter_Intro);
+
+    parent = IDataFilter::getConfigCentralObject(parent);
+    assert(parent);
+
+    (*parent)
+    ("writevery", Description_HTMLWriter_writeevery,
+        _cfg_writevery, 0.0F , 0.0F ,FLT_MAX)
+    ("htmlfile", Description_HTMLWriter_htmlfile, _cfg_html_file)
+    ("generate_template", Description_HTMLWriter_generatetemplate,
+        _cfg_generate_template, false)
+    ("templatefile", Description_HTMLWriter_templatefile,
+        _cfg_template_file, std::string("htmltemplate"))
+    ("generate_template_dir", Description_HTMLWriter_generatetemplate_dir,
+        _cfg_gen_template_dir, std::string("/tmp/"))
+     ;
+
+    // The following entries cannot be auto-checked, as too complex for
+    // ConfigCentral.
+    (*parent)
+    // formatters
+    ("formatters", Description_HTMLWriter_Formatter,
+        Description_HTMLWriter_Formatter_example)
+    // and some docs for the formatter types and their parameters
+    ("searchwebroot formatter", Description_HTMWriter_Frmter_searchwebroot)
+    ("searchcvsentry", Description_HTMLWriter_Frmter_searchCVSentry);
+
+    parent->SetExample("type", std::string(FILTER_HTMLWRITER), false);
+
+    return parent;
+}
+
 
 #endif

@@ -41,9 +41,6 @@
 #ifndef ISPUTNIKCOMMANDBACKOFFSTRATEGY_H_
 #define ISPUTNIKCOMMANDBACKOFFSTRATEGY_H_
 
-// undefine this to disable the debugging code (mostly logger usage)
-#undef DEBUG_BACKOFFSTRATEGIES
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -52,18 +49,38 @@
 
 #include "configuration/ILogger.h"
 
+/**
+ * Interface class for the decorator-pattern-influenced Backoff strategies.
+ */
 class ISputnikCommandBackoffStrategy
 {
 public:
 
-    ISputnikCommandBackoffStrategy(ISputnikCommandBackoffStrategy *next = NULL);
+protected:
+    /**
+     * protected constructor for BackoffStrategies
+     *
+     * As BO's needs to be specialized, this is protected.
+     *
+     * \param [in] botype pretty-print typename of the BO Algorithm (used for logging)
+     * \param [in] next next object for the decorator-pattern.
+     */
+    ISputnikCommandBackoffStrategy(const std::string &botype, ISputnikCommandBackoffStrategy *next = NULL);
 
-#ifdef DEBUG_BACKOFFSTRATEGIES
-    virtual void SetLogger(ILogger &newlogger) {
-        logger = newlogger;
-        if (next) next->SetLogger(newlogger);
+public:
+    /**
+     *  Setting up the logger for the BO Algorithm and emit a DEBUG-level
+     *  (which helps to log the configured BO-decorator-chain)
+     *
+     * @param parent parent logger to hook up to
+     * @param specialisation specialization to extend the logger with (usually the com
+     */
+    virtual void SetLogger(const std::string &parent) {
+        _logger.Setup(parent, _botype);
+        if (next) next->SetLogger(parent);
+
+        LOGINFO(_logger,"back off strategy " << _botype);
     }
-#endif
 
     virtual ~ISputnikCommandBackoffStrategy();
 
@@ -87,10 +104,12 @@ public:
     virtual void Reset();
 
 protected:
+    /// Next backoff strategy in the chain (decorator pattern)
     ISputnikCommandBackoffStrategy *next;
-#ifdef DEBUG_BACKOFFSTRATEGIES
-    ILogger &logger;
-#endif
+    /// Logger  for this strategy object
+    ILogger _logger;
+    /// Caching the type -- needed for pretty print logging
+    std::string _botype;
 };
 
 #endif /* ISPUTNIKCOMMANDBACKOFFSTRATEGY_H_ */

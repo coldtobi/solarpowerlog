@@ -98,7 +98,7 @@ static void boosthelper_set_result(int* store, int value)
 }
 
 CConnectSerialAsio::CConnectSerialAsio(const string &configurationname) :
-    IConnect(configurationname)
+    IConnect(configurationname),_cfg_characterlen('8'), _cfg_baudrate(9600)
 {
     ioservice = new io_service;
     port = new boost::asio::serial_port(*ioservice);
@@ -107,6 +107,7 @@ CConnectSerialAsio::CConnectSerialAsio(const string &configurationname) :
 
 CConnectSerialAsio::~CConnectSerialAsio()
 {
+    SetThreadTermRequest();
     // Try to shutdown cleanly...
     // (most likely abortall() has been previously called anyway)
     boost::system::error_code ec;
@@ -119,8 +120,17 @@ CConnectSerialAsio::~CConnectSerialAsio()
     }
     mutex.unlock();
 
-    if (port) delete port;
-    if (ioservice) delete ioservice;
+    // need to post to semaphore to interrupt worker thread to terminate.
+    sem_post(&cmdsemaphore);
+
+    LOGDEBUG(logger, "Waiting for thread to join");
+    workerthread.join();
+    LOGDEBUG(logger, "Joined.");
+
+    delete port;
+    delete ioservice;
+
+    sem_destroy(&cmdsemaphore);
 }
 
 void CConnectSerialAsio::Accept(ICommand *callback) {
@@ -139,32 +149,15 @@ void CConnectSerialAsio::Connect(ICommand *callback)
  *
  * The disconnection is done by the async task.
  *
- * (If to be done synchronous, it is also dispatched to the worker thread and
- * directly waited for completion.)
- * */
+ * \note starting with 0.25 the interface is async only!
+ */
 void CConnectSerialAsio::Disconnect(ICommand *callback)
 {
-    // note: internally we still use the sync interface in the destructor!
-    // to ensure that the port is closed when we tear down everything.
-    sem_t semaphore;
+    assert(callback);
 
     CAsyncCommand *commando = new CAsyncCommand(CAsyncCommand::DISCONNECT,
         callback);
-    // if callback is NULL, fallback to synchronous operation.
-    // (we will do the job asynchronous, but wait for completion here)
-    if (!callback) {
-        sem_init(&semaphore, 0, 0);
-        commando->SetSemaphore(&semaphore);
-    }
-
     PushWork(commando);
-
-    if (!callback) {
-        // wait for async job completion
-        sem_wait(&semaphore);
-        LOGTRACE(logger, "destroying CAsyncCommando " << commando);
-        delete commando;
-    }
 }
 
 void CConnectSerialAsio::Send(ICommand *callback)
@@ -336,71 +329,50 @@ void CConnectSerialAsio::_main(void)
 
         // wait for work or signals.
         syscallret = sem_wait(&cmdsemaphore);
-        if (syscallret == 0) {
-            // semaphore had work for us. process it.
-            // safety check: really some work?
-            mutex.lock();
-            if (!cmds.empty()) {
-                bool delete_cmd;
-                CAsyncCommand *donow = cmds.front();
-                cmds.pop_front();
-                // cache info if to delete the object later,
-                // as later it might be already gone.
-                delete_cmd = donow->IsAsynchronous();
-                // reset the ioservice for the next commmand.
-                // (must be done during holding the mutex to avoid a race
-                // with the AbortAll() call.
-                ioservice->reset();
-                mutex.unlock();
-
-                switch (donow->c)
-                {
-                    case CAsyncCommand::CONNECT:
-                        HandleConnect(donow);
-                        // check if we have to delete the object
-                        // or -- in case of sync operation --
-                        // the caller will do that for us.
-                        // the "sign" is, that donow->callback is non NULL
-                        // (as the object can be already gone, if
-                        // the sync command had already deleted it)
-                        if (delete_cmd) {
-                             delete donow;
-                        }
-                    break;
-
-                    case CAsyncCommand::DISCONNECT:
-                        HandleDisconnect(donow);
-                        if (delete_cmd) {
-                            delete donow;
-                        }
-                    break;
-
-                    case CAsyncCommand::RECEIVE:
-                        HandleReceive(donow);
-                        if (delete_cmd) {
-                            delete donow;
-                        }
-                    break;
-
-                    case CAsyncCommand::SEND:
-                        {
-                        HandleSend(donow);
-                        if (delete_cmd) {
-                            delete donow;
-                        }
-                    }
-                    break;
-
-                    default:
-                        LOGDEBUG(logger, "Unknown command received.");
-                        assert(false);
-                    break;
-                }
-
-            } else {
-                mutex.unlock();
-            }
+        if (syscallret == -1) {
+            continue;
         }
+
+        // semaphore had work for us. process it.
+        // safety check: really some work?
+        mutex.lock();
+        if (cmds.empty()) {
+            mutex.unlock();
+            continue;
+        }
+
+        CAsyncCommand *donow = cmds.front();
+        cmds.pop_front();
+        // reset the ioservice for the next commmand.
+        // (must be done during holding the mutex to avoid a race
+        // with the AbortAll() call.
+        ioservice->reset();
+        mutex.unlock();
+
+        switch (donow->c)
+        {
+            case CAsyncCommand::CONNECT:
+                HandleConnect(donow);
+            break;
+
+            case CAsyncCommand::DISCONNECT:
+                HandleDisconnect(donow);
+            break;
+
+            case CAsyncCommand::RECEIVE:
+                HandleReceive(donow);
+            break;
+
+            case CAsyncCommand::SEND:
+                HandleSend(donow);
+            break;
+
+            default:
+                LOGDEBUG_SA(logger, __COUNTER__, "Unknown command "
+                    << donow->c <<" received.");
+            break;
+        }
+        delete donow;
     }
     IConnect::_main();
 }

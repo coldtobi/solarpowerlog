@@ -277,7 +277,14 @@ protected:
 	/// self-terminated or never started..
 	virtual bool IsThreadRunning(void);
 
-private:
+protected:
+	virtual void SetThreadTermRequest(void) {
+	    mutex.lock();
+	    _thread_term_request = true;
+	    mutex.unlock();
+	}
+
+protected:
 	/// bool to check if the thread is started
 	bool _thread_is_running;
 

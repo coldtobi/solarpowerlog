@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2014 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -72,15 +72,15 @@ public:
 
 private:
     CTimedWork()
+    : sch(NULL)
 #ifdef CTIMEDWORK_DEBUG
-    : dhc("CTimedWork")
+        ,dhc("CTimedWork")
 #endif
-    {
-    }
-    ;
+    { }
 
     void _main( void );
 
+    /** Helper struct for the multimap -- to sort the entries. */
     struct time_compare
     {
         bool operator()( const boost::posix_time::ptime t1,
@@ -90,14 +90,12 @@ private:
                 return false;
             return true;
         }
-        ;
     };
+
+    /** holds the command and timing information.
+     * The multimap is sorted accordingly. */
     std::multimap<boost::posix_time::ptime, ICommand*, time_compare> TimedCommands;
 
-    /** holds the commmand */
-    ICommand *cmd;
-    /** holds the timespec */
-    struct timespec ts;
     /** it is attached to this scheduler.
      * (The scheduler keeps books of its processes)*/
     CWorkScheduler *sch;

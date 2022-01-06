@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -83,6 +83,12 @@ CTimedWork::~CTimedWork()
     if (!terminate)
         RequestTermination();
     thread.join();
+
+    std::multimap<boost::posix_time::ptime, ICommand*, time_compare>::iterator it;
+    for(it = TimedCommands.begin(); it != TimedCommands.end(); it++) {
+        delete (*it).second;
+    }
+    TimedCommands.clear();
 }
 
 // Called on execution of the thread.
@@ -108,7 +114,7 @@ void CTimedWork::ScheduleWork( ICommand *Command, struct timespec ts )
 #ifdef CTIMEDWORK_DEBUG
         ctimedwork_wants_mutex=1;
 #endif
-        CMutexAutoLock m(&this->mut);
+        CMutexAutoLock m(mut);
 #ifdef CTIMEDWORK_DEBUG
         ctimedwork_wants_mutex=1;ctimedwork_has_mutex=1;
         this->work_received++;

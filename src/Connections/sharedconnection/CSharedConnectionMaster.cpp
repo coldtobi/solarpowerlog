@@ -92,7 +92,7 @@ void CSharedConnectionMaster::ExecuteCommand(const ICommand *Command)
             // ok, we've got signalled that the last atomic block command has
             // just been finished.
             // redirect the answer and clean up our stats.
-            CMutexAutoLock m(&mutex); // mutex is needed....
+            CMutexAutoLock m(mutex); // mutex is needed....
 //            LOGDEBUG(logger, "Ending Ticket " << active_ticket );
             assert(last_atomic_cmd);
             last_atomic_cmd->mergeData(*Command);
@@ -164,7 +164,7 @@ void CSharedConnectionMaster::ExecuteCommand(const ICommand *Command)
             break;
         }
         case CMD_NONATOMIC_HANDLEREADCOMPLETION: {
-            CMutexAutoLock cma(&mutex);
+            CMutexAutoLock cma(mutex);
             _nam_interrupted = false;
             // will be executed if a non-atomic read completes or read
             // was interrupted with another request.
@@ -292,14 +292,14 @@ bool CSharedConnectionMaster::IsConnected(void)
 bool CSharedConnectionMaster::AbortAll()
 {
     assert(connection);
-    CMutexAutoLock cma(&mutex);
+    CMutexAutoLock cma(mutex);
     readtimeout = boost::posix_time::not_a_date_time;
     return connection->AbortAll();
 }
 
 long CSharedConnectionMaster::GetTicket()
 {
-    CMutexAutoLock lock(&mutex);
+    CMutexAutoLock lock(mutex);
     ++ticket_cnt;
     // Overflow protection -- the zero is reserved for "no ticket"
     if (0 == ticket_cnt) ticket_cnt++;
@@ -381,7 +381,7 @@ void CSharedConnectionMaster::Receive(ICommand* callback,
         timeout = SHARED_CONN_DEFAULTTIMEOUT;
     }
 
-    CMutexAutoLock m(&mutex);
+    CMutexAutoLock m(mutex);
     boost::posix_time::ptime ptimetmp =
         boost::posix_time::microsec_clock::universal_time()
             + boost::posix_time::milliseconds(timeout);
@@ -464,7 +464,7 @@ ICommand* CSharedConnectionMaster::HandleAtomicBlock(ICommand* cmd,
         assert(!ticket);
     }
 
-    CMutexAutoLock m(&mutex);
+    CMutexAutoLock m(mutex);
     //LOGDEBUG(logger,"Ticket for this command is: "<< ticket << " (current ticket is "    << active_ticket << ")");
 
     // check if this received work is part of an atomic block

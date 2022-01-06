@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -48,22 +48,56 @@ Copyright (C) 2009-2012 Tobias Frost
  */
 class CMutexAutoLock {
 public:
-	CMutexAutoLock(boost::mutex * mutex);
-	virtual ~CMutexAutoLock();
+    /** Construct the MutexAutoLock object and obtain lock to the mutex.
+     *
+     * @param mutex object to control
+     * @param allow_recursive whether additional lock() and unlock()
+     *  should be accounted. if false, every call to lock() and unlock()
+     *  will lock and unlock, if true, the mutex will only be unlocked if
+     *  the amount of calls to lock() matches the unlock()s -- and on object
+     *  destruction.
+     */
+    CMutexAutoLock(boost::mutex &mutex, bool allow_recursive = false);
 
-	void unlock(void) {
-		if (locked) mutex->unlock();
-		locked = false;
-	}
+    /** Destructor. Will also unlock the mutex if held during destruction
+     *
+     */
+    virtual ~CMutexAutoLock();
 
-	void lock(void) {
-		if (!locked) mutex->lock();
-		locked = true;
-	}
+	/** Unlock a previously locked mutex
+	 *
+	 * In recursive mode, only unlocked when the number of calls to lock()
+	 * matches the ones to unlock()
+	 */
+    void unlock(void)
+    {
+        if (_locked) {
+            _locked--;
+            if (0 == _locked || !_allow_recursive) {
+                _mutex.unlock();
+                _locked = 0;
+            }
+        }
+    }
+
+    /** Lock the mutex
+     *
+     * \note This will block if the mutex is already held by e.g another
+     * instance.
+     */
+    void lock(void)
+    {
+        if (!_locked) _mutex.lock();
+        _locked++;
+    }
 
 private:
-	bool locked;
-	boost::mutex *mutex;
+    /// mutex object
+    boost::mutex &_mutex;
+    /// store state whether recursive mode or not
+    bool _allow_recursive;
+    /// current lock state -- u
+    int _locked;
 
 };
 

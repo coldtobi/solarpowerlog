@@ -42,10 +42,16 @@ public:
     /// Constructor:
     /// retries -> how often to issue command before giving up
     CSputnikCmdBOIfSupported( int retries = 3,
-            ISputnikCommandBackoffStrategy *next = NULL ) :
-            ISputnikCommandBackoffStrategy(next), triesleft(retries),
-            triesleft_orig(retries), supported(false)
-    { }
+        ISputnikCommandBackoffStrategy *next = NULL) :
+        ISputnikCommandBackoffStrategy("BOIfSupported", next),
+        triesleft(retries), triesleft_orig(retries), supported(false)
+    {
+        // do not repeat ourself more than once a day (roughly, 23,5h to avoid
+        // timing shifts due to the seasons)
+        // and disable the "repeation count"
+        _logger.setSaMaxSuppressTime(23*3600 + 30*60);
+        _logger.setSaMaxSuppressRepetitions(0);
+    }
 
     virtual ~CSputnikCmdBOIfSupported() {};
 

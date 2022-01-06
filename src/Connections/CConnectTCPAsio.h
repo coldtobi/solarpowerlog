@@ -38,6 +38,7 @@ Copyright (C) 2009-2012 Tobias Frost
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/streambuf.hpp>
+#include <boost/asio/io_service.hpp>
 #include <semaphore.h>
 
 #include "interfaces/IConnect.h"
@@ -67,21 +68,45 @@ protected:
 public:
 	virtual ~CConnectTCPAsio();
 
+    /** Request Connection
+     *
+     * Please see the base class IConnect for details
+     *
+     * @param callback will be called after completion, containing also the
+     * result
+     *
+     * \sa IConnect::Conncect()
+    */
+
     virtual void Connect(ICommand *callback);
 
+    /** Request disconnect
+     *
+     * Please see the base class IConnect for details
+     *
+     * @param callback will be called after completion.
+     *
+     * \sa IConnect::Disconncect()
+    */
     virtual void Disconnect(ICommand *callback);
-
-    virtual void SetupLogger(const string& parentlogger, const string & = "")
-    {
-        IConnect::SetupLogger(parentlogger, "Comms_TCP_ASIO");
-    }
 
     virtual void Send(ICommand *callback);
 
+    /** Try to read from stream
+     *
+     * Please see the base class IConnect for details
+     *
+     * @param callback will be called after completion.
+     *
+     * \sa IConnect::Receive()
+    */
     virtual void Receive(ICommand *callback);
 
-    virtual bool CheckConfig(void);
-
+    /**
+     * Get current connection status
+     *
+     * \sa IConnect::IsConnected()
+     */
     virtual bool IsConnected(void);
 
 	virtual void Accept(ICommand *cmd);
@@ -95,6 +120,13 @@ public:
 	/// Note: The current executed I/O will also be cancelled, but error
 	/// reporting might report a wrong error. (e.g timeout instead of cancelled)
     virtual bool AbortAll(void);
+
+    virtual bool CheckConfig(void);
+
+    virtual void SetupLogger(const string& parentlogger, const string & = "")
+    {
+        IConnect::SetupLogger(parentlogger, "Comms_TCP_ASIO");
+    }
 
 private:
     boost::asio::io_service *ioservice;

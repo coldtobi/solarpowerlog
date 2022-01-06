@@ -33,23 +33,29 @@ bool CSputnikCmdBOTimed::ConsiderCommand() {
     if (!ret) return false;
 
     if (last == boost::posix_time::not_a_date_time) {
+        LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Timed_Consider"),
+            "BO-Timed: Considering -- first call");
         return true;
     }
 
     if (last + interval >= boost::posix_time::second_clock::local_time()) {
+        LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Timed_Consider"),
+            "BO-Timed: Considering -- due");
         return true;
     }
 
-#ifdef DEBUG_BACKOFFSTRATEGIES
-    LOGTRACE(logger,"BO-Timed: not yet due. Due at " << (last+interval));
-#endif
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Timed_Consider"),
+        "BO-Timed: not yet due. Due at " << (last+interval));
+
     return false;
 }
 
 void CSputnikCmdBOTimed::CommandAnswered() {
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Timed-Logic"),"BO-Timed: Answered");
     last = boost::posix_time::second_clock::local_time();
 }
 
 void CSputnikCmdBOTimed::Reset() {
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Timed-Logic"),"BO-Timed: Reset");
     last = boost::posix_time::not_a_date_time;
 }

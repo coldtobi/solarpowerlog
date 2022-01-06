@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
- Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2012-2015 Tobias Frost
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Lesser General Public License as published by
@@ -19,13 +19,11 @@
  ----------------------------------------------------------------------------
  */
 
-/** \file CInverterSputnikSSeries.h
+/** \file CInverterSputnikSSeriesSimulator.h
  *
- *  Created on: May 21, 2009
+ *  Created on: June 07, 2012
  *      Author: Tobias Frost
  *
- *      Contributors:
- *      E.A.Neonakis <eaneonakis@freemail.gr>
  */
 
 #ifndef CINVERTERSPUTNIKSSERIESSIMULATOR_H_
@@ -45,7 +43,7 @@
 /** Implements a (simple) simulator for the Sputnik S Series
  *
  * The Sputnik S-Series are an inverter family by Sputnik Engineering
- * Please see the manufactor's homepage for details.
+ * Please see the manufacturer's homepage for details.
  */
 class CInverterSputnikSSeriesSimulator : public IInverterBase
 {
@@ -60,8 +58,6 @@ public:
         bool killbit;
     };
 
-public:
-
     CInverterSputnikSSeriesSimulator(const string & name,
         const string & configurationpath);
     virtual ~CInverterSputnikSSeriesSimulator();
@@ -70,6 +66,9 @@ public:
 
     /** implements the ICommandTarget interface */
     virtual void ExecuteCommand(const ICommand *Command);
+
+#warning implement me!
+    virtual CConfigCentral* getConfigCentralObject(void) { return NULL; }
 
 protected:
     /** calculate the checksum for the telegram stored in str */
@@ -141,6 +140,14 @@ private:
     /// accept again when ctrl server allows us again to connect.
     /// \sa _disconnect
     bool _isconnected;
+
+    /// inject the next time an checksum error (will force an reconnect from the
+    /// client)
+    bool _inject_chksum_err;
+
+    /// modify values automatically to simulate changes
+    bool _modify_values;
+
 };
 
 #endif

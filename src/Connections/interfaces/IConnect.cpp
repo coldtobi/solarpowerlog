@@ -51,15 +51,13 @@ void IConnect::SetupLogger(const string &parentlogger, const string & spec)
 
 IConnect::~IConnect()
 {
-	mutex.lock();
-	if (_thread_is_running) {
-		_thread_term_request = true;
-		workerthread.interrupt();
-		mutex.unlock();
-		workerthread.join();
-	} else {
-		mutex.unlock();
-	}
+    mutex.lock();
+    if (_thread_is_running) {
+        _thread_term_request = true;
+        workerthread.interrupt();
+    }
+    mutex.unlock();
+    workerthread.join();
 }
 
 void IConnect::StartWorkerThread(void)

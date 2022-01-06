@@ -32,24 +32,27 @@ bool CSputnikCmdBOOnce::ConsiderCommand()
 {
     bool ret = ISputnikCommandBackoffStrategy::ConsiderCommand();
     if (ret) {
-#ifdef DEBUG_BACKOFFSTRATEGIES
         if (issued) {
-            LOGTRACE(logger,"BO-Once: Already issued.");
+            LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Once_Consider"),
+                "BO-Once: Already issued.");
+            return false;
         }
-#endif
-        return !issued;
     }
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Once_Consider"),
+        "BO-Once: Not issued yet.");
     return ret;
 }
 
 void CSputnikCmdBOOnce::CommandAnswered()
 {
     ISputnikCommandBackoffStrategy::CommandAnswered();
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Once"), "BO-Once: Answered.");
     issued = true;
 }
 
 void CSputnikCmdBOOnce::Reset()
 {
     ISputnikCommandBackoffStrategy::Reset();
+    LOGDEBUG_SA(_logger, LOG_SA_HASH("BO-Once"), "BO-Once: Reset.");
     issued = false;
 }

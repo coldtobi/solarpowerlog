@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2014 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -84,6 +84,10 @@ Copyright (C) 2009-2012 Tobias Frost
 #ifndef CCONFIGHELPER_H_
 #define CCONFIGHELPER_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <string>
 #include <libconfig.h++>
 
@@ -105,10 +109,14 @@ public:
 	/** Constructor
 	 *
 	 * \param configurationpath The path to the section of the
+	 * \param index (optional) to get enter a aggregate (by adding .[<index>] to the array)
 	 * configuration file we want to evaluate.
 	 * (Usually you got this path by the factory generated your object)
 	*/
-	CConfigHelper( const string& configurationpath );
+	CConfigHelper( const string& configurationpath, int index= -1);
+
+	CConfigHelper( const string& configurationpath, const string &element,int index= -1);
+
 	virtual ~CConfigHelper();
 
 	/** Basic checks on configuration keys, with the support for optional parameters
@@ -140,9 +148,46 @@ public:
 	 * \param printerr if true, explain the error to the main logger
 	 * (default:false)
 	 */
-	bool CheckConfig( const string &setting, libconfig::Setting::Type type,
+	bool CheckConfig( const char *setting, libconfig::Setting::Type type,
 		bool optional = false, bool printerr = true );
 
+	/** Convenience function that checks if the setting fulfills the requirements
+	 * (type, optionality...) and if it does stores the value into the given
+	 * object.
+	 *
+	 * \returns false if the CheckConfig failed, true if CheckConfig succeeded.
+	 *
+	 * \note To have the default value option, just initialize your object with
+	 * the initial value before calling this member. It will not be changed if
+	 * an optional setting is not found.
+	 */
+    template<class T>
+    bool CheckAndGetConfig(const char* setting, libconfig::Setting::Type type,
+        T &store,bool optional = false, bool printerr = true ) {
+
+        if (!CheckConfig(setting, type, optional, printerr)) {
+            return false;
+        }
+
+        GetConfig(setting, store);
+        return true;
+    }
+
+#if 0
+	template<class T>
+	bool CheckAndGetConfig(const string &setting, libconfig::Setting::Type type,
+        T &store,bool optional = false, bool printerr = true ) {
+
+	    if (!CheckConfig(setting.c_str(), type, optional, printerr)) {
+	        return false;
+	    }
+
+	    GetConfig(setting, store);
+	    return true;
+	}
+#endif
+
+#if 0
     /** Specialization of the GetConfig routine for the type long.
      * This is necessary as libconfig-1.4.8 removes long support.
      * \returns false, if the default value has been used.
@@ -152,6 +197,7 @@ public:
     {
         return GetConfig(setting.c_str(), store, defvalue);
     }
+#endif
 
     /** Specialization of the GetConfig routine for the type unsigned-long.
      * This is necessary as libconfig-1.4.8 removes long support.
@@ -161,12 +207,12 @@ public:
     bool GetConfig(char const *setting, unsigned long &store,
         unsigned long defvalue)
     {
-        unsigned int tmp;
+        unsigned long long tmp;
 
         try {
             libconfig::Setting & set =
                 Registry::Instance().GetSettingsForObject(cfgpath);
-            if (!set.lookupValue(setting, tmp)) {
+            if (!set.lookupValue(setting, tmp) || tmp > ULONG_MAX ) {
                 store = defvalue;
                 return false;
             }
@@ -185,12 +231,12 @@ public:
     bool GetConfig(char const *setting, long &store,
             long defvalue)
     {
-        int tmp;
+        long long tmp;
         try {
             libconfig::Setting & set =
                 Registry::Instance().GetSettingsForObject(cfgpath);
 
-            if (!set.lookupValue(setting, tmp)) {
+            if (!set.lookupValue(setting, tmp) || tmp > LONG_MAX) {
                 store = defvalue;
                 return false;
             }
@@ -202,6 +248,7 @@ public:
         }
     }
 
+#if 0
     /** Retrieves a configuration or set the config with a default value.
      *
      * \returns false, if the default value has been used.
@@ -211,6 +258,7 @@ public:
     {
         return GetConfig(setting.c_str(), store, defvalue);
     }
+#endif
 
     /** GetConfig when using a char-array as setting -- see ##GetConfig doc
      * \returns false, if the default value has been used.
@@ -238,15 +286,21 @@ public:
      */
     bool GetConfig(char const *setting, unsigned long &store)
     {
+        unsigned long long tmp;
         try {
             libconfig::Setting & set =
                 Registry::Instance().GetSettingsForObject(cfgpath);
-            return set.lookupValue(setting, (unsigned int &)store);
+            if (!set.lookupValue(setting, tmp) || tmp > ULONG_MAX) {
+                return false;
+            }
+            store = tmp;
+            return true;
         } catch (...) {
             return false;
         }
     }
 
+#if 0
     /** GetConfig for mandatory settings.
       * \returns false, if the setting could not be retrieved.
      */
@@ -255,6 +309,7 @@ public:
 	{
 	    return GetConfig(setting.c_str(),store);
 	}
+#endif
 
     /** GetConfig for mandatory long settings, for libconfig 1.4.8
       * \returns false, if the setting could not be retrieved.
@@ -262,11 +317,10 @@ public:
     bool GetConfig(char const *setting, long &store)
     {
         try {
-            int tmp;
+            long long tmp;
             libconfig::Setting & set =
                 Registry::Instance().GetSettingsForObject(cfgpath);
-
-            if (!set.lookupValue(setting, tmp)) {
+            if (!set.lookupValue(setting, tmp) || tmp > LONG_MAX) {
                 return false;
             }
             store = tmp;
@@ -306,7 +360,7 @@ public:
 	 *
 	 */
     template<class T>
-    bool GetConfigArray(const string& setting, int index, T &store)
+    bool GetConfigArray(const char* setting, int index, T &store)
     {
         try {
             libconfig::Setting & set =
@@ -343,7 +397,8 @@ public:
 	 * not existant.
 	 *
 	 */
-    bool GetConfigArray(const string& setting, int index, string &store)
+
+    bool GetConfigArray(const char* setting, int index, string &store)
     {
         try {
             libconfig::Setting & set =
@@ -410,8 +465,10 @@ public:
             return true;
 #if 0
         } catch (libconfig::SettingNotFoundException &e) {
+            cerr << e.what();
             return false;
         } catch (libconfig::SettingTypeException &e) {
+            cerr << e.what();
             return false;
         }
 #else
@@ -420,6 +477,178 @@ public:
         }
 #endif
     }
+
+    /** Return current configurationpath. */
+    const std::string & GetCfgPath(void) const
+    {
+        return cfgpath;
+    }
+
+    bool isExisting(void) const;
+
+    /*** Check (type, existence) and assign value. This variant is for optional
+     * parameters. This variant is necessary due to the ambiguousness of
+     * char and std::string for libconfig.
+     *
+     * @param setting to look for
+     * @param store where to store the result
+     * @param defval what is the default value
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error"
+     */
+    bool CheckAndGetConfig(const char* setting, std::string &store,
+        const std::string &defval, ILogger *logger = NULL)
+    {
+        libconfig::Config* cfg = Registry::Instance().Configuration();
+        string tmp = cfgpath + "." + setting;
+
+        try {
+            store = (const char *) cfg->lookup(cfgpath + "." + setting);
+        } catch (libconfig::SettingNotFoundException &e) {
+            if (logger) LOGINFO(*logger, "Setting " << setting <<
+                " was not found. Using default value: \"" << defval <<"\"");
+            store = defval;
+        } catch (libconfig::SettingTypeException &e) {
+            if (logger) LOGERROR(*logger, "Setting " << setting <<
+                " is of wrong type");
+            return false;
+        }
+        return true;
+    }
+
+    /*** Check (type, existence) and assign value. This variant is for optional
+     * parameters
+     *
+     * @param setting to look for
+     * @param store where to store the result
+     * @param defval what is the default value
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error"
+     */
+    template<class T>
+    bool CheckAndGetConfig(const char* setting, T &store, const T &defval,
+        ILogger *logger = NULL)
+    {
+        libconfig::Config* cfg = Registry::Instance().Configuration();
+        string tmp = cfgpath + "." + setting;
+
+        try {
+            store = cfg->lookup(cfgpath + "." + setting);
+        } catch (libconfig::SettingNotFoundException &e) {
+            if (logger) LOGINFO(*logger, "Setting " << setting <<
+                " was not found. Using default value: \"" << defval << "\"");
+            store = defval;
+        } catch (libconfig::SettingTypeException &e) {
+            if (logger) LOGERROR(*logger, "Setting " << setting <<
+                " is of wrong type");
+            return false;
+        }
+        return true;
+    }
+
+    /** Convenience wrapper for CheckAndGetConfig() to take a std::string as
+     * setting parameter
+     *
+     * @param setting to look for
+     *
+     * @param store where to store the result
+     * @param defval what is the default value
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error"
+     */
+    template<class T>
+    bool CheckAndGetConfig(const std::string &setting, T &store, const T &defval,
+        ILogger *logger = NULL)
+    {
+        return CheckAndGetConfig(setting.c_str(), store, defval, logger);
+    }
+
+    /*** Check (type, existence) and assign value. This variant is for mandatory
+     * parameters. This variant is necessary due to the ambiguousness of
+     * char and std::string for libconfig.
+     *
+     * This function looks up a value and store it in the destination variable,
+     * if the type of the setting is convertible.
+     *
+     * If libconfig cannot convert to the desired datatype, it will fail,
+     * If the setting is not there, the default value will be used.
+     *
+     * @param setting to look for
+     * @param store where to store the result
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error" or "not found"
+     */
+    bool CheckAndGetConfig(const char* setting, std::string &store,
+        ILogger *logger = NULL)
+    {
+        libconfig::Config* cfg = Registry::Instance().Configuration();
+        string tmp = cfgpath + "." + setting;
+
+        try {
+            store = (const char*) cfg->lookup(tmp);
+        } catch (libconfig::SettingNotFoundException &e) {
+            if (logger) LOGERROR(*logger,
+                "Required setting " << setting << " was not found.");
+            return false;
+        } catch (libconfig::SettingTypeException &e) {
+            if (logger) LOGERROR(*logger,
+                "Setting " << setting << " is of wrong type.");
+            return false;
+        }
+        return true;
+    }
+
+    /*** Check (type, existence) and assign value. This variant is for mandatory
+     * parameters.
+     *
+     * This function looks up a value and store it in the destination variable,
+     * if the type of the setting is convertible.
+     *
+     * If libconfig cannot convert to the desired datatype, it will fail,
+     * If the setting is not there, the default value will be used.
+     *
+     * @param setting to look for
+     * @param store where to store the result
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error" or "not found"
+     */
+    template<class T>
+    bool CheckAndGetConfig(const char* setting, T &store,
+        ILogger *logger = NULL)
+    {
+        libconfig::Config* cfg = Registry::Instance().Configuration();
+        string tmp = cfgpath + "." + setting;
+
+        try {
+            store = cfg->lookup(tmp);
+        } catch (libconfig::SettingNotFoundException &e) {
+            if (logger) LOGERROR(*logger,
+                "Required setting " << setting << " was not found.");
+            return false;
+        } catch (libconfig::SettingTypeException &e) {
+            if (logger) LOGERROR(*logger,
+                "Setting " << setting << " is of wrong type.");
+            return false;
+        }
+        return true;
+    }
+
+    /** Convenience wrapper for CheckAndGetConfig() to take a std::string as
+     * setting parameter
+     *
+     * @param setting to look for
+     * @param store where to store the result
+     * @param logger where to log the error (if NULL, do not print the error)
+     * @return true on success, false on "type error" or "not found"
+     *
+     */
+    template<class T>
+    bool CheckAndGetConfig(const std::string &setting, T &store,
+        ILogger *logger = NULL)
+    {
+        return CheckAndGetConfig(setting.c_str(), store, logger);
+    }
+
 
 private:
 	string cfgpath;

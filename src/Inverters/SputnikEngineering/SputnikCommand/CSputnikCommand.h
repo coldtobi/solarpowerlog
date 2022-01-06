@@ -84,6 +84,8 @@ public:
         : ISputnikCommand(logger, cmd, max_answer_len, inv, capname, backoff), scale(
             scale) { }
 
+    virtual ~CSputnikCommand() {};
+
 private:
     /// convert the hex answer to a long variable.
     unsigned long converthextolong(const std::vector<std::string> & tokens) {

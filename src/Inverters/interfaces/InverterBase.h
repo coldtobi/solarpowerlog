@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -185,9 +185,7 @@ Copyright (C) 2009-2012 Tobias Frost
  * "WorkScheduler overview" Page.
  *
  * \todo that Workscheduler-Page is not yet written,
- *
- *
- *
+
  */
 
 #ifndef INVERTERBASE_H_
@@ -201,11 +199,14 @@ Copyright (C) 2009-2012 Tobias Frost
 #include <map>
 
 #include "Connections/interfaces/IConnect.h"
+#include "Connections/factories/IConnectFactory.h"
+#include "Inverters/factories/InverterFactoryFactory.h"
 #include "interfaces/CCapability.h"
 #include "patterns/ICommandTarget.h"
 #include "configuration/ILogger.h"
 
 class ICapaIterator;
+class CConfigCentral;
 
 using namespace std;
 
@@ -215,6 +216,35 @@ using namespace std;
 /// this parameter (especially if the success/failure is immediately known)
 #define CONFIG_TWEAK_CONNECTION_TIMEOUT "option_connectiontimeout"
 #define CONFIG_TWEAK_CONNECTION_TIMEOUT_DEFAULT (15000)
+
+
+#define IBASE_DESCRIPTION_INTRO \
+"Inverter definition\n" \
+"These basic parameters are necessary so that solarpowerlog has knowldege " \
+"about the inverter to be configured:\n" \
+"\"name\", \"manufacturer\" and \"model\""
+
+#define IBASE_DESCRIPTION_NAME \
+"This configuration names the inverter. The name are used internally to identify " \
+"the inverter and thus needs to be unique."
+
+#define IBASE_DESCRIPTION_MANUFACTURER \
+"Specifies the manufacturer of the inverter.\n" \
+"Possible values are:\n" \
+INV_MANU_SPUTNIK " " \
+INV_MANU_DUMMY
+
+#define IBASE_DESCRIPTION_MODEL \
+"Specifies the model of the inverter."
+
+#define IBASE_DESCRIPTION_COMMS \
+"Specifies the communication method to be used.\n" \
+"Possible values are:\n" \
+COMMS_ASIOTCP_ID " " \
+COMMS_ASIOSERIAL_ID " " \
+COMMS_SHARED_ID " " \
+"\nNote: Every communication method has its own configuration parameter, " \
+"please consult its documentation and sample configuration files."
 
 /** Inverter Interface .... */
 // TODO: This class renamed, as it also fits for the "Filters" (Data source, data computing/enhancing, ...)
@@ -276,6 +306,19 @@ public:
 	virtual IConnect * getConnection(void) const {
 		return connection;
 	}
+
+    /** Create & Get a CCOnfigCentral object for this instance.
+     *
+     * @return generated object. Ownership is waived to caller. might return NULL.
+     *
+     * \note in overriden version, call the base's implementation.
+     * The base *might* already have added properties to check aloing with
+     * their descriptions. It also can opt to just return a NULL pointer though.
+     */
+    virtual CConfigCentral* getConfigCentralObject(CConfigCentral *parent)
+    {
+        return parent;
+    }
 
 protected:
 	/// Add a Capability for the inverter.

@@ -42,7 +42,7 @@ public:
 			const std::vector<std::string> &parameters);
 
 protected:
-	// make the factory class my friend to instanciate the object.
+	// make the factory class my friend to instantiate the object.
 	friend class IFormater;
 	CFormaterWebRootStrip();
 

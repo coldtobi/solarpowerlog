@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,9 @@ Copyright (C) 2009-2012 Tobias Frost
  * \author Tobias Frost
  */
 
-#include <iostream>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include "configuration/CConfigHelper.h"
 #include "configuration/Registry.h"
@@ -33,17 +35,41 @@ Copyright (C) 2009-2012 Tobias Frost
 using namespace std;
 using namespace libconfig;
 
-CConfigHelper::CConfigHelper( const string& configurationpath )
+
+#warning TODO Cache libconfig::settings in class and initialize in constructor
+
+CConfigHelper::CConfigHelper( const string& configurationpath, int index )
 {
 	cfgpath = configurationpath;
+
+	if (index != -1 ) {
+	    char c[32];
+	    snprintf( c, 31, ".[%d]", index );
+	    cfgpath += c;
+	}
 }
+
+CConfigHelper::CConfigHelper(const string& configurationpath,
+    const string &element, int index)
+{
+    // unfortunatly, delegating a constructor is only possible with C++11 and I
+    // dont want to switch now...
+    cfgpath = configurationpath + "." + element;
+
+    if (index != -1) {
+        char c[32];
+        snprintf(c, 31, ".[%d]", index);
+        cfgpath += c;
+    }
+}
+
 
 CConfigHelper::~CConfigHelper()
 {
 	// TODO Auto-generated destructor stub
 }
 
-bool CConfigHelper::CheckConfig( const string & setting,
+bool CConfigHelper::CheckConfig( const char *setting,
 	libconfig::Setting::Type type, bool optional, bool printerr )
 {
 	libconfig::Config* cfg = Registry::Instance().Configuration();
@@ -87,4 +113,10 @@ bool CConfigHelper::CheckConfig( const string & setting,
 			" of " << name << " " << reason);
 	}
 	return false;
+}
+
+bool CConfigHelper::isExisting(void) const {
+
+    libconfig::Config* cfg = Registry::Instance().Configuration();
+    return cfg->exists(cfgpath);
 }

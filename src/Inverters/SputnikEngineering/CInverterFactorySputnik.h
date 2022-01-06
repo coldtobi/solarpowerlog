@@ -31,7 +31,8 @@ Copyright (C) 2009-2012 Tobias Frost
 
 /** \fixme Factory for the Sputnik inverters
  *
- * Creates the object handling the inverters for the manufactor sputnik.
+ * Creates the object handling the inverters for the manufacturer Sputnik
+ * Engineering.
  *
 */
 

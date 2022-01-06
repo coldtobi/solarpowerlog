@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -47,7 +47,7 @@ Copyright (C) 2009-2012 Tobias Frost
 /** \fixme Implements the Inverter Interface for the Sputnik S Series
  *
  * The Sputnik S-Series are an inverter family by Sputnik Engineering
- * Please see the manufactor's homepage for details.
+ * Please see the manufacturer's homepage for details.
  */
 class CInverterSputnikSSeries: public IInverterBase
 {
@@ -60,6 +60,8 @@ public:
 
 	/** implements the ICommandTarget interface */
 	virtual void ExecuteCommand(const ICommand *Command);
+
+    virtual CConfigCentral* getConfigCentralObject(CConfigCentral *parent);
 
 protected:
 	/** calculate the checksum for the telegram stored in str */
@@ -122,17 +124,25 @@ private:
     /// event.
     bool _shutdown_requested;
 
+    /// Configuration cache: queryinterval
+    float _cfg_queryinterval_s;
+
     /// Configuration Cache: Timeout for telegramm, unit is ms
-    float _cfg_response_timeout_ms;
+    float _cfg_response_timeout_s;
 
     /// Configuration Cache: Timeout to establish a connection, unit ms
-    float _cfg_connection_timeout_ms;
+    float _cfg_connection_timeout_s;
 
     /// Configuration Cache: Timeout to send a telegramm, unit ms
-    float _cfg_send_timeout_ms;
+    float _cfg_send_timeout_s;
 
     /// Configuration Cache: Reconnect delay, unit s
     float _cfg_reconnectdelay_s;
+
+    /** Configuration cache: Should we disable support for
+     * 3-phase-specific commands?
+     */
+    bool _cfg_disable_3phase;
 
     /// cache for inverters comm adr.
     unsigned int _cfg_commadr;

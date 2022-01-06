@@ -39,7 +39,6 @@ CDebugHelperCollection::~CDebugHelperCollection()
         delete (*it);
         it++;
     }
-
 }
 
 void CDebugHelperCollection::Register(IDebugObject *dobj) {

@@ -100,7 +100,7 @@ void CSharedConnectionSlave::Receive(ICommand *callback)
         return;
         // Receive within an atomic block.
     } else {
-        CMutexAutoLock cma(&mutex);
+        CMutexAutoLock cma(mutex);
         // check if we have got already some data to return.
         // (note: to have read_buffer empty we must already in non-atomic mode
         // and registered already  with the master)
@@ -238,7 +238,7 @@ bool CSharedConnectionSlave::IsConnected(void)
 bool CSharedConnectionSlave::AbortAll()
 {
     // We abort only our pending "receives"
-    CMutexAutoLock cma(&mutex);
+    CMutexAutoLock cma(mutex);
     for (std::list<ICommand *>::iterator it = pending_reads.begin();
          it != pending_reads.end(); it++) {
         (*it)->addData(ICMD_ERRNO, -ECANCELED);
@@ -258,7 +258,7 @@ void CSharedConnectionSlave::ExecuteCommand(const ICommand* cmd)
             // and remove all expired reads.
             boost::posix_time::ptime pt(
                 boost::posix_time::microsec_clock::universal_time());
-            CMutexAutoLock cma(&mutex);
+            CMutexAutoLock cma(mutex);
             // check for timeouts in the reading commands list
             // and if so schedule work with error set to timedout.
             for (std::list<ICommand *>::iterator it = pending_reads.begin();
@@ -288,7 +288,7 @@ void CSharedConnectionSlave::ExecuteCommand(const ICommand* cmd)
             // Handling: We will answer all pending reads with this answer...
 
             std::string s;
-            CMutexAutoLock cma(&mutex);
+            CMutexAutoLock cma(mutex);
             try {
                 s = boost::any_cast<std::string>(
                     cmd->findData(ICONN_TOKEN_RECEIVE_STRING));

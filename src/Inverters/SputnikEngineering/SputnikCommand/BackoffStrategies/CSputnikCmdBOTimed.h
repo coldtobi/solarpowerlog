@@ -39,7 +39,7 @@ class CSputnikCmdBOTimed: public ISputnikCommandBackoffStrategy
 {
 public:
     CSputnikCmdBOTimed( const boost::posix_time::time_duration &interval, ISputnikCommandBackoffStrategy *next = NULL) :
-            ISputnikCommandBackoffStrategy(next), interval(interval)
+            ISputnikCommandBackoffStrategy("BOTimed", next), interval(interval)
     { }
 
     virtual ~CSputnikCmdBOTimed() {};

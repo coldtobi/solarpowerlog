@@ -1,9 +1,12 @@
-/var/log/solarpowerlog/* {
-	rotate 12
-	weekly
-	compress
-	missingok
-	postrotate
-		start-stop-daemon --stop --exec /usr/bin/solarpowerlog --pidfile=/var/run/solarpowerlog/solarpowerlog.pid -s USR1
-	endscript
-     }
+/var/log/solarpowerlog/solarpowerlog.log /var/log/solarpowerlog/solarpowerlog.err {
+monthly
+rotate 12
+compress
+missingok
+notifempty
+sharedscripts
+postrotate
+	[ -e /var/run/solarpowerlog/solarpowerlog.pid ] && kill -USR1 `cat /var/run/solarpowerlog/solarpowerlog.pid`
+endscript
+size 256M
+}

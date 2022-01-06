@@ -1,11 +1,8 @@
 ## Makefile.am -- Process this file with automake to produce Makefile.in
 ACLOCAL_AMFLAGS = -I m4
 
-#if MAKE_DBIXX
-#	DBIXX_SUBDIRS=extlibs/dbixx
-#endif
+SUBDIRS=src
 
-SUBDIRS=$(DBIXX_SUBDIRS) src
 
 EXTRA_DIST = example_confs bootstrap.sh tools/solarpowerlog.init tools/solarpowerlog.default tools/solarpowerlog.logrotate src/ctemplate/README
 
@@ -29,4 +26,3 @@ dist-hook:
 			echo A git clone is required to generate a ChangeLog >&2; \
 	fi
 
-# dist: dist-bzip2

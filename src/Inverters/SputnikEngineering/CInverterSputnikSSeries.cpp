@@ -1,23 +1,23 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
-*/
+ */
 
 // HOW TO HANLDE MULTI-PHASE UNITS
 // not implemented, but some ideas:
@@ -45,10 +45,11 @@ Copyright (C) 2009-2012 Tobias Frost
 
 #ifdef HAVE_INV_SPUTNIK
 
+#include "CInverterSputnikSSeries.h"
+
 #include "configuration/Registry.h"
 #include "configuration/CConfigHelper.h"
-
-#include "CInverterSputnikSSeries.h"
+#include "configuration/ConfigCentral/CConfigCentral.h"
 
 #include "patterns/ICommand.h"
 
@@ -68,6 +69,49 @@ Copyright (C) 2009-2012 Tobias Frost
 #include "Inverters/SputnikEngineering/SputnikCommand/BackoffStrategies/CSputnikCmdBOIfSupported.h"
 
 #include <errno.h>
+
+std::string i_need_a_stdstring;
+
+#define DESCRIPTION_SPUTNIK_INTRO \
+"The description of the following settings are valid when solparppowerlog configures for the S-Series inverters from Sputnik Engineering, " \
+"so when \n" \
+"manufacturer=\"SPUTNIK_ENGINEERING\";\n" \
+"model=\"S-Series\";\n" \
+"\n Hint: Many Sputnik Engineering inverters speak the same protocol, " \
+" so it make sense to just give it a try and see if it works."
+
+
+#define DESCRIPTION_QUERYINTERVAL \
+"This setting defines how often the inverter should be queried for new data, " \
+"how long it should wait before issuing the next round of commands.\n" \
+"The unit is seconds. \n"
+
+#define DESCRIPITON_COMMADR \
+"Communication address of the inverter (as set in the communication menu of the inverter)"
+
+#define DESCRIPITON_OWNADR \
+"Address to use as originating address for the communication. " \
+"You should not change this value: The default value is designated for loggers."
+
+#define DESCRIPITON_RESPONSE_TIMEOUT \
+"Time the inverter has to answer the query before the request times out.\n" \
+"The unit is seconds."
+
+#define DESCRIPITON_CONNECTION_TIMEOUT \
+"Time until a connection has to be established before timing out.\n" \
+"The unit is seconds."
+
+#define DESCRIPITON_SEND_TIMEOUT \
+"Time until a send request has to be finished before timing out.\n" \
+"The unit is seconds."
+
+#define DESCRIPITON_RECONNECT_DELAY \
+"Time waited, until a reconnection is attempted.\n The unit is seconds."
+
+#define DESCRIPTION_DISABLE_3PHASE_COMMANDS \
+"Should queries dedicated for 3-phase-inverters be disabled. " \
+"\"true\" disables them, \"false\" enables them. "
+
 
 #undef DEBUG_TOKENIZER
 // Debug: Print all received tokens
@@ -90,9 +134,11 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
 		const string & configurationpath) :
 	IInverterBase::IInverterBase(name, configurationpath, "inverter")
 {
-    _cfg_ownadr = 0xfb;
-    _cfg_commadr = 0x01;
 
+    _cfg_ownadr = 0xfb; //< not needed, just to make compiler happy. (initialized by cnfig check)
+    _cfg_commadr = 0x01; //< not needed, just to make compiler happy. (initialized by cnfig check)
+
+    _shutdown_requested = false;
 	// Add the capabilites that this inverter has
 	// Note: The "must-have" ones CAPA_CAPAS_REMOVEALL and CAPA_CAPAS_UPDATED are already instanciated by the base class constructor.
 	// Note2: You also can add capabilites as soon you know them (runtime detection)
@@ -100,40 +146,32 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
 	string s;
 	IValue *v;
 	CCapability *c;
+
+#warning remove this depreciated cruft (and spell manufacturer correctly)
 	s = CAPA_INVERTER_MANUFACTOR_NAME;
 	v = CValueFactory::Factory<CAPA_INVERTER_MANUFACTOR_TYPE>();
 	((CValue<string>*) v)->Set("Sputnik Engineering");
 	c = new CCapability(s, v, this);
 	AddCapability(c);
 
+    s = CAPA_INVERTER_MANUFACTURER_NAME;
+    v = CValueFactory::Factory<CAPA_INVERTER_MANUFACTURER_TYPE>();
+    ((CValue<string>*) v)->Set("Sputnik Engineering");
+    c = new CCapability(s, v, this);
+    AddCapability(c);
+
 	// Add the request to initialize as soon as the system is up.
 	ICommand *cmd = new ICommand(CMD_INIT, this);
 	Registry::GetMainScheduler()->ScheduleWork(cmd);
+
+#warning move most stuff here outside of constructor
+#warning for example post CheckConfig
 
 	CConfigHelper cfghlp(configurationpath);
 	float interval;
 	cfghlp.GetConfig("queryinterval", interval, 5.0f);
 
-	bool disable_3phase;
-	cfghlp.GetConfig("disable_3phase_commands",disable_3phase,(bool) false);
-
-	// Query settings needed and default all optional settings.
-	cfghlp.GetConfig("ownadr", _cfg_ownadr, 0xFBu);
-	cfghlp.GetConfig("commadr", _cfg_commadr, 0x01u);
-	cfghlp.GetConfig("response_timeout",_cfg_response_timeout_ms,3.0F);
-	// cfg-file ha unit "seconds", but we need "milliseconds" later.
-	_cfg_response_timeout_ms *= 1000.0;
-
-    cfghlp.GetConfig("connection_timeout",_cfg_connection_timeout_ms,3.0F);
-    // cfg-file ha unit "seconds", but we need "milliseconds" later.
-    _cfg_connection_timeout_ms *= 1000.0;
-
-    cfghlp.GetConfig("send_timeout",_cfg_send_timeout_ms,3.0F);
-    // cfg-file ha unit "seconds", but we need "milliseconds" later.
-    _cfg_send_timeout_ms *= 1000.0;
-
-    cfghlp.GetConfig("reconnect_delay",_cfg_reconnectdelay_s,15.0F);
-     // cfg-file ha unit "seconds", but we need "milliseconds" later.
+	cfghlp.GetConfig("disable_3phase_commands",_cfg_disable_3phase,(bool) false);
 
 	s = CAPA_INVERTER_QUERYINTERVAL;
 	v = CValueFactory::Factory<CAPA_INVERTER_QUERYINTERVAL_TYPE>();
@@ -146,13 +184,6 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
 	((CValue<std::string>*) v)->Set(name);
 	c = new CCapability(s, v, this);
 	AddCapability(c);
-
-	LOGDEBUG(logger,"Inverter configuration:");
-	LOGDEBUG(logger,"class CInverterSputnikSSeries ");
-	LOGDEBUG(logger,"Query Interval: "<< interval);
-	LOGDEBUG(logger,"Ownadr: " << _cfg_ownadr << " Commadr: " << _cfg_commadr);
-	cfghlp.GetConfig("comms", s, (string) "unset");
-	LOGDEBUG(logger,"Communication: " << s);
 
 	// Initialize vector of supported commands.
 	// Handles the "TYP" command, which will identifiy the model
@@ -242,7 +273,7 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
         new CSputnikCommand<CAPA_INVERTER_GRID_AC_VOLTAGE_TYPE>(logger, "UL1", 10, 0.1,
             this, CAPA_INVERTER_GRID_AC_VOLTAGE_NAME));
 
-    if (disable_3phase) {
+    if (_cfg_disable_3phase) {
         // First, implement the "this command is not supported" scheme.
         commands.push_back(
             new CSputnikCommand<CAPA_INVERTER_GRID_AC_VOLTAGE_PHASE2_TYPE>(logger, "UL2",
@@ -263,7 +294,7 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
         new CSputnikCommand<CAPA_INVERTER_GRID_AC_CURRENT_TYPE>(logger, "IL1", 10, 0.01,
             this, CAPA_INVERTER_GRID_AC_CURRENT_NAME));
 
-    if (disable_3phase) {
+    if (_cfg_disable_3phase) {
         commands.push_back(
             new CSputnikCommand<CAPA_INVERTER_GRID_AC_CURRENT_PHASE2_TYPE>(logger, "IL2", 10, 0.01,
                 this, CAPA_INVERTER_GRID_AC_CURRENT_PHASE2_NAME, new CSputnikCmdBOIfSupported));
@@ -277,7 +308,7 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
         new CSputnikCommand<CAPA_INVERTER_TEMPERATURE_TYPE>(logger, "TKK", 10, 1.0,
             this, CAPA_INVERTER_TEMPERATURE_NAME));
 
-    if (disable_3phase) {
+    if (_cfg_disable_3phase) {
         commands.push_back(
             new CSputnikCommand<CAPA_INVERTER_TEMPERATURE_PHASE2_TYPE>(logger, "TK2", 10, 1.0, this,
                 CAPA_INVERTER_TEMPERATURE_PHASE2_NAME, new CSputnikCmdBOIfSupported));
@@ -355,7 +386,6 @@ CInverterSputnikSSeries::CInverterSputnikSSeries(const string &name,
 
     // Register for broadcast events
     Registry::GetMainScheduler()->RegisterBroadcasts(this);
-    _shutdown_requested = false;
 }
 
 CInverterSputnikSSeries::~CInverterSputnikSSeries()
@@ -371,36 +401,24 @@ CInverterSputnikSSeries::~CInverterSputnikSSeries()
 
 bool CInverterSputnikSSeries::CheckConfig()
 {
-	string setting;
-	string str;
+    // new configcode...
+    std::auto_ptr<CConfigCentral> cfg(getConfigCentralObject(NULL));
+    bool cfgok = cfg->CheckConfig(logger, configurationpath);
 
-	bool fail = false;
+    assert(connection);
+    if (!connection->CheckConfig()) cfgok=false;
 
-	CConfigHelper hlp(configurationpath);
-	fail |= (true != hlp.CheckConfig("comms", libconfig::Setting::TypeString));
-	// Note: Queryinterval is optional. But CConfigHelper handle also opt.
-	// parameters and checks for type.
-	fail |= (true != hlp.CheckConfig("queryinterval",
-	    libconfig::Setting::TypeFloat, true));
-	fail |= (true != hlp.CheckConfig("commadr", libconfig::Setting::TypeInt));
-
-	// Check config of the communication component, if already instanciated.
-	if (connection) {
-		fail |= (true != connection->CheckConfig());
-	}
-
-	// syntax check for option to disable 3-phase commands.
-	// default: non-enabled.
-	fail |= (true != hlp.CheckConfig("disable_3phase_commands",libconfig::Setting::TypeBoolean,true));
-
-	/// syntax check for communication timeouts
-    fail |= (true != hlp.CheckConfig("response_timeout",libconfig::Setting::TypeFloat,true));
-    fail |= (true != hlp.CheckConfig("connection_timeout",libconfig::Setting::TypeFloat,true));
-    fail |= (true != hlp.CheckConfig("send_timeout",libconfig::Setting::TypeFloat,true));
-    fail |= (true != hlp.CheckConfig("reconnect_delay",libconfig::Setting::TypeFloat,true));
-
-	LOGTRACE(logger, "Check Configuration result: " << !fail);
-	return !fail;
+    LOGTRACE(logger, "Big Config Check for the new CConfigCentral");
+    LOGTRACE(logger, "result so far: " << cfgok);
+    LOGTRACE(logger, "_cfg_queryinterval_s " << _cfg_queryinterval_s);
+    LOGTRACE(logger, "_cfg_response_timeout_s " << _cfg_response_timeout_s);
+    LOGTRACE(logger, "_cfg_connection_timeout_s " << _cfg_connection_timeout_s );
+    LOGTRACE(logger, "_cfg_send_timeout_s " << _cfg_send_timeout_s );
+    LOGTRACE(logger, "_cfg_reconnectdelay_s " << _cfg_reconnectdelay_s);
+    LOGTRACE(logger, "_cfg_disable_3phase" << _cfg_disable_3phase);
+    LOGTRACE(logger, "_cfg_commadr " << _cfg_commadr);
+    LOGTRACE(logger, "_cfg_ownadr " << _cfg_ownadr);
+    return cfgok;
 }
 
 /** Calculate the telegram checksum and return it.
@@ -489,7 +507,8 @@ void CInverterSputnikSSeries::ExecuteCommand(const ICommand *Command)
 		// Next-State: Wait4Connection
 
 		cmd = new ICommand(CMD_WAIT4CONNECTION, this);
-		cmd->addData(ICONN_TOKEN_TIMEOUT,((long)_cfg_connection_timeout_ms));
+        cmd->addData(ICONN_TOKEN_TIMEOUT,
+            ((long)(_cfg_connection_timeout_s * 1000.0)));
 		connection->Connect(cmd);
 		break;
 
@@ -535,37 +554,37 @@ void CInverterSputnikSSeries::ExecuteCommand(const ICommand *Command)
 
 	case CMD_QUERY_POLL:
 	{
-		LOGDEBUG(logger, "new state: CMD_QUERY_POLL ");
+		LOGDEBUG(logger, "new state: CMD_QUERY_POLL");
 
 		// Collect all queries to be issued.
 		std::vector<ISputnikCommand*>::iterator it;
 		for (it=commands.begin(); it!= commands.end(); it++) {
 		    if ((*it)->ConsiderCommand()) {
-#ifdef DEBUG_BACKOFFSTRATEGIES
-		        LOGTRACE(logger,"Considering Command " << (*it)->command );
-#endif
+		        long hash = (long)(*it); ///use the pointer as hash
+		        LOGDEBUG_SA(logger, hash, "Considering Command "
+		            << (*it)->GetCommand() );
 		        pendingcommands.push_back(*it);
 		    }
-#ifdef DEBUG_BACKOFFSTRATEGIES
 		    else {
-		        LOGTRACE(logger," Command " << (*it)->command << " not to be considered.");
+                long hash = (long)(*it); ///use the pointer as hash
+		        LOGDEBUG_SA(logger,hash," Command " << (*it)->GetCommand() <<
+		            " not to be considered.");
 		    }
-#endif
 		}
 	}
 	// fall through intended.
 
 	case CMD_SEND_QUERIES:
 	{
-		LOGDEBUG(logger, "new state: CMD_SEND_QUERIES ");
+		LOGDEBUG(logger, "new state: CMD_SEND_QUERIES");
 		commstring = assemblequerystring();
-		LOGDEBUG(logger, "Sending: " << commstring << " Len: "<< commstring.size());
+		LOGTRACE(logger, "Sending: " << commstring << " Len: "<< commstring.size());
 
 		cmd = new ICommand(CMD_WAIT_SENT, this);
 		// Start an atomic communication block (to hint any shared comms)
 		cmd->addData(ICONN_ATOMIC_COMMS, ICONN_ATOMIC_COMMS_REQUEST);
 		cmd->addData(ICONN_TOKEN_SEND_STRING, commstring);
-		cmd->addData(ICONN_TOKEN_TIMEOUT,((long)_cfg_send_timeout_ms));
+        cmd->addData(ICONN_TOKEN_TIMEOUT,((long)(_cfg_send_timeout_s*1000.0)));
 		connection->Send(cmd);
 	}
 		break;
@@ -598,7 +617,7 @@ void CInverterSputnikSSeries::ExecuteCommand(const ICommand *Command)
         }
 
         cmd = new ICommand(CMD_EVALUATE_RECEIVE, this);
-        cmd->addData(ICONN_TOKEN_TIMEOUT, (long)_cfg_response_timeout_ms);
+        cmd->addData(ICONN_TOKEN_TIMEOUT, (long)(_cfg_response_timeout_s*1000.0));
         // finish this atomic block (shared comms hinting)
         cmd->addData(ICONN_ATOMIC_COMMS, ICONN_ATOMIC_COMMS_CEASE);
         connection->Receive(cmd);
@@ -697,7 +716,7 @@ void CInverterSputnikSSeries::ExecuteCommand(const ICommand *Command)
 			break;
 		}
 
-		// TODO differenciate between identify query and "normal" runtime queries
+		// TODO differentiate between identify query and "normal" runtime queries
 
 		CCapability *c = GetConcreteCapability(CAPA_INVERTER_DATASTATE);
 		CValue<bool> *vb = (CValue<bool> *) c->getValue();
@@ -742,7 +761,7 @@ string CInverterSputnikSSeries::assemblequerystring()
     // - telegram len does not exceed 255 bytes in total,
     // while there are 16 header bytes and 6 trailing bytes to be considered.
     // - answer is not exceeding 255 bytes
-    // (here, we reserve a saftey of 10 bytes additionally).
+    // (here, we reserve a safety of 10 bytes additionally).
     int telegramlen = 254-22;
     int expectedanswerlen = 255-31;
     int currentport = QUERY; // At the moment only QUERY's are supported.
@@ -969,6 +988,50 @@ void CInverterSputnikSSeries::tokenizer(const char *delimiters,
 	if (lastPos != s.length()) {
 		tokens.push_back(s.substr(lastPos, s.length() - lastPos));
 	}
+}
+
+CConfigCentral* CInverterSputnikSSeries::getConfigCentralObject(CConfigCentral *parent)
+{
+    CConfigCentral *pcfg = IInverterBase::getConfigCentralObject(parent);
+    if (!pcfg) {
+        pcfg = new CConfigCentral;
+    }
+
+    assert(pcfg);
+    CConfigCentral &cfg = *pcfg;
+
+    /// needed fo CConfigCentral to "have an object". WE do not care about content.
+    static std::string dummy;
+
+    // those are for config-dumping only -- they are already interpretatd
+    // before creating this object.
+    cfg
+    (NULL, IBASE_DESCRIPTION_INTRO)
+    ("name", IBASE_DESCRIPTION_NAME, "\"Inverter_1\"")
+    ("manufacturer", IBASE_DESCRIPTION_MANUFACTURER, "\"SPUTNIK_ENGINEERING\"")
+    ("model", IBASE_DESCRIPTION_MODEL, "\"S-Series\"")
+    ("comms", IBASE_DESCRIPTION_COMMS, dummy)
+    ;
+
+    cfg
+    (NULL, DESCRIPTION_SPUTNIK_INTRO)
+    ("queryinterval", DESCRIPTION_QUERYINTERVAL, _cfg_queryinterval_s, 5.0f,
+        0.0f, FLT_MAX)
+    ("commadr", DESCRIPITON_COMMADR, _cfg_commadr, 0x01u, 0u , 255u)
+    ("ownadr", DESCRIPITON_OWNADR, _cfg_ownadr, 0xfbu, 0u , 255u)
+    ("response_timeout", DESCRIPITON_RESPONSE_TIMEOUT, _cfg_response_timeout_s,
+        3.0f, 0.0f, FLT_MAX)
+    ("connection_timeout", DESCRIPITON_CONNECTION_TIMEOUT,
+        _cfg_connection_timeout_s, 3.0f, 0.0f, FLT_MAX)
+    ("send_timeout", DESCRIPITON_SEND_TIMEOUT, _cfg_send_timeout_s, 3.0f,
+        0.0f, FLT_MAX)
+    ("reconnect_delay", DESCRIPITON_RECONNECT_DELAY, _cfg_reconnectdelay_s,
+        15.0f, 0.0f, FLT_MAX)
+    ("disable_3phase_commands", DESCRIPTION_DISABLE_3PHASE_COMMANDS,
+        _cfg_disable_3phase, false)
+    ;
+
+    return &cfg;
 }
 
 #endif

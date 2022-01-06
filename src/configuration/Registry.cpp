@@ -33,9 +33,11 @@ Copyright (C) 2009-2012 Tobias Frost
 #endif
 
 #include <iostream>
+#include <libgen.h>
 
 #include "configuration/Registry.h"
 #include "interfaces/CWorkScheduler.h"
+
 #include "Inverters/interfaces/InverterBase.h"
 
 using namespace std;
@@ -52,7 +54,16 @@ bool Registry::LoadConfig( std::string name )
 	if (Config)
 		delete Config;
 	Config = new libconfig::Config;
-	try {
+
+	// set include dir the directory, if name has a complete path.
+	// this allows using @include with relative paths to the main config file.
+	char *tmp = strdup(name.c_str());
+	char *tmp2 = tmp;
+	tmp = dirname(tmp);
+    if (tmp && strcmp(tmp,".")) Registry::Configuration()->setIncludeDir(tmp);
+    free(tmp2);
+
+    try {
 		Config->readFile(name.c_str());
 	} catch (libconfig::ParseException &ex) {
 		std::cerr << "Error parsing configuration file " << name
@@ -72,6 +83,30 @@ bool Registry::LoadConfig( std::string name )
 	// Be more sloppy on datatypes -> automatically convert if possible.
 	Config->setAutoConvert(true);
 	return true;
+}
+
+void Registry::FakeConfig(void)
+{
+    static const std::string defaultconfig =
+        "application: { \ndbglevel = \"OFF\"\n}\n"
+        "inverters: "
+        "{ "
+            "inverters = ("
+                "{ }"
+            ")"
+        "}"
+        "loggers: "
+        "{ "
+            "inverters = ("
+                "{ }"
+            ")"
+        "}";
+
+    if (Config)
+        delete Config;
+    Config = new libconfig::Config;
+
+    Config->readString(defaultconfig);
 }
 
 libconfig::Setting & Registry::GetSettingsForObject( std::string section,
@@ -133,4 +168,23 @@ Registry::~Registry()
 	Config = NULL;
 	if (mainscheduler)
 		delete mainscheduler;
+}
+
+void Registry::Shutdown(void) {
+    // Clear datafilters and inverters.
+    std::list<IInverterBase*>::iterator it;
+    for (it = inverters.begin(); it != inverters.end(); it++) {
+        delete *(it);
+    }
+    inverters.clear();
+
+    // shutdown mainscheduler.
+    delete mainscheduler;
+    mainscheduler = NULL;
+
+    // delete config.
+    delete Config;
+    Config = NULL;
+
+
 }

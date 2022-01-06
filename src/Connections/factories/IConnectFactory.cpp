@@ -56,7 +56,7 @@ using namespace std;
  * generate the right class.
  *
  * If the class is not known, it will return a dummy connection class.
- * So you can also create inverters or derived classes without commms. */
+ * So you can also create inverters or derived classes without comms. */
 IConnect * IConnectFactory::Factory( const string &configurationpath )
 {
 	string type = "";
@@ -64,17 +64,17 @@ IConnect * IConnectFactory::Factory( const string &configurationpath )
 	cfghelper.GetConfig("comms",type);
 
 #ifdef HAVE_COMMS_ASIOTCPIO
-	if (type == "TCP/IP") {
+	if (type == COMMS_ASIOTCP_ID) {
 		return new CConnectTCPAsio(configurationpath);
 	}
 #endif
 #ifdef HAVE_COMMS_ASIOSERIAL
-	if (type == "RS2xx") {
+	if (type == COMMS_ASIOSERIAL_ID ) {
 		return new CConnectSerialAsio(configurationpath);
 	}
 #endif
 #ifdef HAVE_COMMS_SHAREDCONNECTION
-	if (type == "SharedConnection") {
+	if (type == COMMS_SHARED_ID) {
 		return new CSharedConnection(configurationpath);
 	}
 #endif

@@ -37,6 +37,8 @@ Copyright (C) 2009-2012 Tobias Frost
 
 using namespace std;
 
+#warning TODO Check if we should switch from std::list as container to smth searchable (to optimize CheckSubsctipzion / SetSubscription / Subscribe / Unsubscribe)
+
 void IObserverSubject::Subscribe( class IObserverObserver *observer )
 {
 	if (!CheckSubscription(observer))

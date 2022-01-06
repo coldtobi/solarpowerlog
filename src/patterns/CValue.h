@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -59,43 +59,44 @@ protected:
         return magic++;
     }
 
-    template<typename T_>
+    template<typename T>
     static int magic_number_for() {
         static int result(next_magic_number());
         return result;
     }
 
-    template<class T>
+    template<typename T>
     friend class CValue;
 
 };
 
 /** Generalized storage for data.
  * A CValue stores one information, regardless of the type.*/
-template<class T>
+template<typename T>
 class CValue : public IValue
 {
 public:
-
-    CValue() {
-        IValue::type_ = MagicNumbers::magic_number_for<T>();
+    CValue() : IValue(MagicNumbers::magic_number_for<T>()) {
+        value = T();
     }
 
-    CValue(const T &set) {
-        IValue::type_ = MagicNumbers::magic_number_for<T>();
+    CValue(const T &set) : IValue(MagicNumbers::magic_number_for<T>()) {
         value = set;
-        timestamp = boost::posix_time::second_clock::local_time();
+        SetTimestamp(boost::posix_time::second_clock::local_time());
+        SetValid();
     }
+
+    virtual ~CValue() {};
 
     /// Serves as a virtual copy constructor.
     virtual CValue<T>* clone() {
         return new CValue<T>(*this);
     }
 
-
     void Set(T value, boost::posix_time::ptime timestamp = boost::posix_time::second_clock::local_time()) {
-        this->timestamp = timestamp;
         this->value = value;
+        SetTimestamp(timestamp);
+        SetValid();
     }
 
     T Get(void) const {
@@ -103,17 +104,15 @@ public:
     }
 
     virtual void operator=(const T& val) {
-        timestamp = boost::posix_time::second_clock::local_time();
         value = val;
+        SetTimestamp(boost::posix_time::second_clock::local_time());
+        SetValid();
     }
 
     virtual void operator=(const CValue<T> &val) {
-        timestamp = val.GetTimestamp();
         value = val.Get();
-    }
-
-    virtual boost::posix_time::ptime GetTimestamp(void) const {
-        return timestamp;
+        SetTimestamp(val.GetTimestamp());
+        SetValid(val.IsValid());
     }
 
     virtual operator std::string() {
@@ -122,30 +121,59 @@ public:
         return ss.str();
     }
 
+    virtual bool operator==(IValue &v) {
+        if (GetInternalType() == v.GetInternalType()) {
+            CValue<T> &realv = (CValue<T>&)v;
+            return (realv.Get() == Get());
+        }
+
+        throw std::bad_cast();
+        return false;
+    }
+
+    virtual bool operator!=(IValue &v) {
+         if (GetInternalType() == v.GetInternalType()) {
+             CValue<T> &realv = (CValue<T>&)v;
+             return (realv.Get() != Get());
+         }
+         throw std::bad_cast();
+         return false;
+     }
+
+    virtual IValue& operator=(const IValue &v) {
+        if (&v == this) return *this;
+
+        if (this->IsType(&v)) {
+            CValue<T> *rv = (CValue<T>*)&v;
+            this->value = rv->value;
+            SetTimestamp(rv->GetTimestamp());
+            SetValid(rv->IsValid());
+            return *this;
+        }
+        throw std::bad_cast();
+        return *this;
+    }
+
     /** Static interface function to determine at runtime the type of the CValue
      * object.
      * Usage example:
      * CValue<int> cv_int;
      * IValue *iv1 = &cv_int;
-     * cout << CValue<int>::IsType(iv1);*/
-    static bool IsType(IValue *totest) {
+     * cout << CValue<int>::IsType(iv1);
+     */
+    static bool IsType(const IValue *totest) {
         if (MagicNumbers::magic_number_for<T>() == totest->GetInternalType()) {
             return true;
         }
         return false;
     }
 
-    template <typename U>
-    static IValue* Factory() {
-        return new CValue<U>;
-    }
-
 private:
     T value;
-    boost::posix_time::ptime timestamp;
-
 };
 
+// TODO check if factory really needed or substituted already by some other
+// pattern
 class CValueFactory
 {
 public:
@@ -154,7 +182,5 @@ public:
         return new CValue<T>;
     }
 };
-
-
 
 #endif /* CVALUEX_H_ */

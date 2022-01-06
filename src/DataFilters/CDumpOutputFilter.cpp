@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,7 +51,8 @@ using namespace libconfig;
 
 CDumpOutputFilter::CDumpOutputFilter( const string &name,
 	const string & configurationpath ) :
-	IDataFilter(name, configurationpath), AddedCaps(0)
+	IDataFilter(name, configurationpath), AddedCaps(0),
+	clearscreen(false)
 {
 	// Schedule the initialization and subscriptions later...
 	ICommand *cmd = new ICommand(CMD_INIT, this);
@@ -66,6 +67,8 @@ CDumpOutputFilter::CDumpOutputFilter( const string &name,
 
 CDumpOutputFilter::~CDumpOutputFilter()
 {
+#if 0
+// base may be already destructed!
 	if (base) {
 		auto_ptr<ICapaIterator> it(base->GetCapaNewIterator());
 		pair<string, CCapability*> pair;
@@ -74,6 +77,7 @@ CDumpOutputFilter::~CDumpOutputFilter()
 			pair.second->UnSubscribe(this);
 		}
 	}
+#endif
 }
 
 bool CDumpOutputFilter::CheckConfig()
@@ -83,15 +87,26 @@ bool CDumpOutputFilter::CheckConfig()
 	bool fail = false;
 
 	CConfigHelper hlp(configurationpath);
-	fail |= !hlp.CheckConfig("datasource", Setting::TypeString);
+
+	if (!base) {
+        std::string str;
+        fail |= !hlp.CheckAndGetConfig("datasource", Setting::TypeString, str);
+        if (fail) {
+            LOGERROR(logger, "datassource not found.");
+        } else {
+            LOGERROR(logger, "Cannot find datassource with the name " << str);
+        }
+        fail = true;
+    }
+
 	fail |= !hlp.CheckConfig("clearscreen", Setting::TypeBoolean, true);
 
 	hlp.GetConfig("datasource", str, (std::string) "");
 	IInverterBase *i = Registry::Instance().GetInverter(str);
 	if (!i) {
-		LOGERROR(logger, "Setting " << setting << " in " << configurationpath
+		LOGERROR(logger, "Setting in " << configurationpath
 			<< "." << name
-			<< ": Cannot find instance of Inverter with the name "
+			<< ": Cannot find datasource with the name "
 			<< str );
 		fail = true;
 	}
@@ -153,29 +168,21 @@ void CDumpOutputFilter::ExecuteCommand( const ICommand *cmd )
 
 		cfghlp.GetConfig("clearscreen", this->clearscreen);
 
-		if (cfghlp.GetConfig("datasource", tmp)) {
-			base = Registry::Instance().GetInverter(tmp);
-			if (base) {
-				CCapability *cap = base->GetConcreteCapability(
-					CAPA_CAPAS_UPDATED);
-				assert(cap); // this is required to have....
-				cap->Subscribe(this);
+        assert(base);
+        CCapability *cap = base->GetConcreteCapability(
+        CAPA_CAPAS_UPDATED);
+        assert(cap); // this is required to have....
+        cap->Subscribe(this);
 
-				cap = base->GetConcreteCapability(
-					CAPA_CAPAS_REMOVEALL);
-				assert(cap);
-				cap->Subscribe(this);
+        cap = base->GetConcreteCapability(
+        CAPA_CAPAS_REMOVEALL);
+        assert(cap);
+        cap->Subscribe(this);
 
-				cap = base->GetConcreteCapability(
-					CAPA_INVERTER_DATASTATE);
-				assert(cap);
-				cap->Subscribe(this);
-			} else {
-				LOGWARN(logger,
-					"Warning: Could not find data source to connect. Filter: "
-					<< configurationpath << "." << name);
-			}
-		}
+        cap = base->GetConcreteCapability(
+        CAPA_INVERTER_DATASTATE);
+        assert(cap);
+        cap->Subscribe(this);
 
 		CheckOrUnSubscribe(true);
 		// falling through
@@ -218,8 +225,7 @@ void CDumpOutputFilter::ExecuteCommand( const ICommand *cmd )
 // The parameter sets, if we subscribe or unsubscribe.
 void CDumpOutputFilter::CheckOrUnSubscribe( bool subscribe )
 {
-	if (!base)
-		return;
+	assert(base);
 
 	// mmh, i think they are unused... this filter iterates and needs not to
 	// subscribe.

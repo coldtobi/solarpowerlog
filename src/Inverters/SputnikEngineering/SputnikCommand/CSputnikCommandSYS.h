@@ -43,6 +43,8 @@ public:
 
     virtual bool handle_token(const std::vector<std::string> & tokens);
 
+    virtual void InverterDisconnected();
+
 private:
     unsigned int laststatuscode;
     unsigned int secondparm_sys;

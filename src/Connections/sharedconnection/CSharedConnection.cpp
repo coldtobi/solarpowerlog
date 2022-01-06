@@ -86,7 +86,6 @@ bool CSharedConnection::CreateSharedConnectionObject()
 
 bool CSharedConnection::CheckConfig(void)
 {
-	bool fail = false;
 	CConfigHelper cfg(ConfigurationPath);
 	std::string s;
 
@@ -100,14 +99,11 @@ bool CSharedConnection::CheckConfig(void)
 		return false;
 	}
 
-	if (fail)
+	if (!concreteSharedConnection->CheckConfig()) {
 		return false;
-
-	if (!concreteSharedConnection->CheckConfig())
-		return false;
+	}
 
 	return true;
-
 }
 
 void CSharedConnection::SetupLogger(const string& parentlogger, const string &)

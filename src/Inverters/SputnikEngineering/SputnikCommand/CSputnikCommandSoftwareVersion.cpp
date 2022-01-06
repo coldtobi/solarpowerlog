@@ -45,8 +45,8 @@ static const std::string BDNSWV("BDN;SWV");
 CSputnikCommandSoftwareVersion::CSputnikCommandSoftwareVersion(ILogger &logger,
         IInverterBase *inv, const std::string & capname,
         ISputnikCommandBackoffStrategy *backoff ) :
-        ISputnikCommand(logger, "SWVERSION", 0, inv, capname, backoff), got_buildversion(false), got_swversion(
-                false)
+        ISputnikCommand(logger, BDNSWV, 0, inv, capname, backoff),
+        got_buildversion(false), got_swversion(false), sw(0), build(0)
 {
 }
 
@@ -76,7 +76,6 @@ bool CSputnikCommandSoftwareVersion::ConsiderCommand() {
     return strat->ConsiderCommand();
 }
 
-
 bool CSputnikCommandSoftwareVersion::handle_token(
     const std::vector<std::string>& tokens) {
 
@@ -85,11 +84,11 @@ bool CSputnikCommandSoftwareVersion::handle_token(
 
     if ( tokens[0] == SWV ) {
         sw = strtoul(tokens[1].c_str(), NULL, 16);
-        got_swversion = true;
+        if (sw) got_swversion = true;
     }
     else if ( tokens[0] == BDN ) {
         build = strtoul(tokens[1].c_str(), NULL, 16);
-        got_buildversion = true;
+        if (build) got_buildversion = true;
     }
     else {
         return false;
@@ -114,4 +113,11 @@ bool CSputnikCommandSoftwareVersion::handle_token(
     // information (However, all Inverters I know support this command...)
     if (got_swversion && got_buildversion) this->strat->CommandAnswered();
     return true;
+}
+
+void CSputnikCommandSoftwareVersion::InverterDisconnected()
+{
+    got_buildversion = false;
+    got_swversion = false;
+    ISputnikCommand::InverterDisconnected();
 }

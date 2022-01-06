@@ -162,6 +162,16 @@ public:
 	 */
 	bool LoadConfig( std::string name );
 
+	 /** Fake a configuration
+	  *
+	  * (Well, this is a hack to make the snippets printing work without
+	  * mayor rework throughout the program)
+	  *
+	  * This function will initilalize an absolute minimum configuration set
+	  * tp have the libconfig objects available */
+	 void FakeConfig(void);
+
+
 	/* NOTE: This is obsolete! Use an Object of CConfigHelper to extract config!
 	 *
 	 *  Extract the settings-subset for a specific object,
@@ -213,9 +223,8 @@ private:
 	 *
 	 * \warning libconfig might throw exceptions if the setting is not
 	 * found.
-	 * Howeverm, if using the configurationpath (supplied by the bootstrap
+	 * However, if using the configurationpath (supplied by the bootstrap
 	 * code) and having objname empty, the path has been validated. */
-
 	libconfig::Setting & GetSettingsForObject( std::string section,
 		std::string objname = "" );
 public:
@@ -232,7 +241,7 @@ public:
 	 * \note: This function is only for the bootstrap process!*/
 	void AddInverter( const IInverterBase *inverter );
 
-	/** Get the main scheduler to scheule work...
+	/** Get the main scheduler to schedule work...
 	 *
 	 * \returns pointer to the scheduler */
 	static CWorkScheduler *GetMainScheduler( void )
@@ -265,6 +274,10 @@ public:
         std::cerr << "--- cut here -----------------------------------------------"<< std::endl;
 
 	}
+
+	/** Destroy all inverter and datafilter objects.
+	 * Called before termination. */
+	void Shutdown(void);
 
 private:
 	/// keeps the object for the main scheduler

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
- Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2012-2015 Tobias Frost
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -58,6 +58,8 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include <boost/random.hpp>
+
 struct CInverterSputnikSSeriesSimulator::simulator_commands simcommands[] = {
         { "ADR", 1, new CValue<int>(1), 0, NULL, false },
         { "PAC", 0.5, new CValue<float>(42), 0, NULL, false },
@@ -67,7 +69,7 @@ struct CInverterSputnikSSeriesSimulator::simulator_commands simcommands[] = {
         { "SYS", 1.0, new CValue<int>(20004), 1, new CValue<int>(0), false },
         { "TYP", 1.0, new CValue<int>(65534), 0, NULL, false },
         { "BDN", 1.0, new CValue<int>(24), 0, NULL, false },
-        { "SWV", 1.0, new CValue<int>(0), 0, NULL, false },
+        { "SWV", 1.0, new CValue<int>(1), 0, NULL, false },
         { "KYR", 1.0, new CValue<float>(42), 0, NULL, false },
         { "KMT", 1.0, new CValue<float>(42), 0, NULL, false },
         { "KDY", 0.1, new CValue<float>(42), 0, NULL, false },
@@ -175,6 +177,47 @@ static bool converttovalue(IValue *ivalue, const std::string &value,
     return true;
 }
 
+/** modify the value a little bit
+ * \param ivalue will be updated.
+ */
+static void modifyvalue(IValue *ivalue)
+{
+    static boost::random::mt19937 rng;
+    // allow changes from -20 to +20%, in 0.1% steps
+    boost::random::uniform_int_distribution<> change(-200,200);
+    float tmp = (float) change(rng) * 0.001;
+
+    // only modify with a certain hardcoded probability.
+    int shouldwe = change(rng) + 200;
+
+    if (shouldwe < 350) return;
+
+    cout << endl << "modifying with tmp=" << tmp << endl;
+
+    if (CValue<float>::IsType(ivalue)) {
+        CValue<float> &v = *((CValue<float>*)ivalue);
+        float tmp2 = v.Get();
+        tmp2 = tmp2 + tmp*tmp2;
+        v.Set(tmp2);
+    } else if (CValue<long>::IsType(ivalue)) {
+        CValue<long> &v = *((CValue<long>*)ivalue);
+        float tmp2 = v.Get();
+        tmp2 = tmp2 + tmp*tmp2 + 0.5;
+        v.Set(tmp2);
+    } else if (CValue<int>::IsType(ivalue)) {
+        CValue<int> &v = *((CValue<int>*)ivalue);
+        float tmp2 = v.Get();
+        tmp2 = tmp2 + tmp*tmp2 + 0.5;
+        v.Set(tmp2);
+    } else if (CValue<bool>::IsType(ivalue)) {
+        ((CValue<bool>*)ivalue)->Set(tmp >= 0.0 ? true : false);
+    } else {
+        LOGERROR(Registry::GetMainLogger(),
+            "converttovalue -- not implemented  CValue<type>");
+    }
+}
+
+
 /// helper to convert the values to suitable strings
 /// Implemented for float, long and int
 static std::string convert2sputnikhex(IValue *value, float scale)
@@ -214,6 +257,8 @@ CInverterSputnikSSeriesSimulator::CInverterSputnikSSeriesSimulator(
     _isconnected = false;
     // will be initialized later.
     ctrlserver = NULL;
+    _inject_chksum_err = false;
+    _modify_values = false;
 
     // Add the capabilites that this inverter has
     // Note: The "must-have" ones CAPA_CAPAS_REMOVEALL and CAPA_CAPAS_UPDATED are already instanciated by the base class constructor.
@@ -222,9 +267,17 @@ CInverterSputnikSSeriesSimulator::CInverterSputnikSSeriesSimulator(
     string s;
     IValue *v;
     CCapability *c;
+
+#warning remove this depreciated cruft (and spell correctly manufacturer)
     s = CAPA_INVERTER_MANUFACTOR_NAME;
     v = CValueFactory::Factory<CAPA_INVERTER_MANUFACTOR_TYPE>();
     ((CValue<string>*)v)->Set("Solarpowerlog");
+    c = new CCapability(s, v, this);
+    AddCapability(c);
+
+    s = CAPA_INVERTER_MANUFACTURER_NAME;
+    v = CValueFactory::Factory<CAPA_INVERTER_MANUFACTURER_TYPE>();
+    ((CValue<string>*) v)->Set("Sputnik Engineering");
     c = new CCapability(s, v, this);
     AddCapability(c);
 
@@ -301,11 +354,8 @@ bool CInverterSputnikSSeriesSimulator::CheckConfig()
                 true));
     fail |= (true != hlp.CheckConfig("commadr", libconfig::Setting::TypeInt));
 
-    // Check config of the component, if already instanciated.
-
-    if (connection) {
-        fail |= (true != connection->CheckConfig());
-    }
+    // Check config of the connection component
+    fail |= (true != connection->CheckConfig());
 
     if (!connection->CanAccept()) {
         LOGFATAL(logger,
@@ -331,7 +381,7 @@ bool CInverterSputnikSSeriesSimulator::CheckConfig()
         }
     } else {
         LOGINFO(logger,
-            "Simulator: control server disables as config not found.");
+            "Simulator: control server disabled as config not found.");
     }
 
     int type;
@@ -867,6 +917,11 @@ std::string CInverterSputnikSSeriesSimulator::parsereceivedstring(
                     // LOGTRACE(logger, tokens[i] << " found");
                     tmps = convert2sputnikhex(scommands[j].value,
                         scommands[j].scale1);
+
+                    if (_modify_values) {
+                        modifyvalue(scommands[j].value);
+                    }
+
                     if (!tmps.empty()) {
                         if (!ret.empty()) {
                             ret += ";";
@@ -898,6 +953,13 @@ std::string CInverterSputnikSSeriesSimulator::parsereceivedstring(
         telsize);
     ret = buf + ret + "|";
     unsigned int checksum = CalcChecksum(ret.c_str(), ret.length());
+
+    if (_inject_chksum_err) {
+        LOGINFO(logger, "Injecting checksum error");
+        checksum = 0xdead;
+        _inject_chksum_err = false;
+    }
+
     snprintf(buf, sizeof(buf), "%04X}", checksum);
     ret += buf;
     return ret;
@@ -945,10 +1007,19 @@ std::string CInverterSputnikSSeriesSimulator::parsereceivedstring_ctrlserver(
         return ("BYE!\n");
     } else if (s == "version") {
         return PACKAGE_STRING + std::string("\n");
+    } else if (s == "inject_chksum") {
+        _inject_chksum_err = true;
+        return ("DONE\n");
+    } else if (s == "modify_on") {
+        _modify_values = true;
+        return ("DONE\n");
+    } else if (s == "modify_off") {
+        _modify_values = false;
+        return ("DONE\n");
     }
 
     size_t first = s.find_first_of(':');
-    if (s.length() > first) {
+    if (first != std::string::npos && s.length() > first) {
         first++;
     } else {
         first = std::string::npos;
@@ -979,6 +1050,7 @@ std::string CInverterSputnikSSeriesSimulator::parsereceivedstring_ctrlserver(
             LOGERROR(logger, "ctrl-server parse: Parse error.");
             s += "ERR: Parse error on " + *it + ". ";
             continue;
+
         }
         int i = 0;
         for (i = 0; scommands[i].token; i++) {

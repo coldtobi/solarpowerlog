@@ -106,9 +106,7 @@ public:
 	 * \throw std::invalid_argument { throws this if data is not existant. The
 	 * data of the invalid_argument is the key which was not found }
 	 */
-	const boost::any findData(const std::string & key) const
-			throw(std::invalid_argument);
-
+	const boost::any findData(const std::string & key) const;
 
 	///  Setter for Command
 	void setCmd(int cmd)

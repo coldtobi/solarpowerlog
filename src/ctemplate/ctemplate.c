@@ -1140,7 +1140,7 @@ static const char *
 newfilename(const char *inclfile, const char *parentfile) {
     char *newfile, *cp;
 
-    newfile = mymalloc(strlen(parentfile) + strlen(inclfile));
+    newfile = mymalloc(strlen(parentfile) + strlen(inclfile) + 1);
     if (strncmp(inclfile, ".../", 4) != 0) {
         return strcpy(newfile, inclfile);
     }

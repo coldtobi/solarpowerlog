@@ -45,6 +45,7 @@ using namespace std;
 IObserverObserver::IObserverObserver(IObserverSubject *subject) {
 
 	/* auto-subscribe */
+    this->subject = NULL;
 	if (subject != NULL) setSubject(subject);
 }
 

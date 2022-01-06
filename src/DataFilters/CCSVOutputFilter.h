@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -233,10 +233,9 @@ public:
 
 	virtual void ExecuteCommand( const ICommand *cmd );
 
+    virtual CConfigCentral* getConfigCentralObject(CConfigCentral *parent);
 
 private:
-
-	IInverterBase *oursource;
 	fstream file;
 
 	/** Do the initialization of the module
@@ -279,7 +278,6 @@ private:
 	/** list of Capabilities in the CSV */
 	list<string> CSVCapas;
 
-
 	// Helpers to shrink some functions...
 	/** Check if any capas are now available which were not before
 	 * (but should be tracked)
@@ -304,6 +302,30 @@ private:
 
 	/// cache: last emitted string without timestamp
 	std::string last_line;
+
+	/** configuration cache: filename of the CVS log */
+	std::string _cfg_cache_filename;
+
+    /** configuration cache: how to format the timestamp */
+    std::string _cfg_cache_formattimestap;
+
+	/** configuration cache rotate the logfile at midnight */
+	bool _cfg_cache_rotate;
+
+	/** configuration cache: should repeated lines be suppressed? */
+	bool _cfg_cache_compactcsv;
+
+	/** configuration cache: should we "flush" after every write
+	 * TODO: Maybe change this parameter / add another to specify file buffer
+	 * length via std::streambuf::pubsetbuf */
+	bool _cfg_cache_flushfb;
+
+	/** configuration cache: is data2log="all"? */
+	bool _cfg_cache_data2log_all;
+
+	/** cache, if we created the CapasList already.*/
+	bool _cache_found_all_capas;
+
 };
 
 #endif

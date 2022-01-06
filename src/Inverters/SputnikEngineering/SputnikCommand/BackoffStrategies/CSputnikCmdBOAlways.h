@@ -41,7 +41,7 @@ public:
     virtual ~CSputnikCmdBOAlways() {}
 
     CSputnikCmdBOAlways( ISputnikCommandBackoffStrategy *next = NULL ) :
-            ISputnikCommandBackoffStrategy(next)
+            ISputnikCommandBackoffStrategy("BOAlways",next)
     { }
 };
 

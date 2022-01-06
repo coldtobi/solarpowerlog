@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -78,9 +78,6 @@ Copyright (C) 2009-2012 Tobias Frost
 #include <log4cxx/basicconfigurator.h>
 #include <log4cxx/propertyconfigurator.h>
 #include <log4cxx/xml/domconfigurator.h>
-// for testing
-#include <log4cxx/net/syslogappender.h>
-using namespace log4cxx::net;
 #endif
 
 #ifdef HAVE_OPENLOG
@@ -88,6 +85,7 @@ using namespace log4cxx::net;
 #endif
 
 #include "configuration/ILogger.h"
+#include "configuration/ConfigCentral/CConfigCentral.h"
 
 #ifdef HAVE_CMDLINEOPTS
 #include <boost/program_options.hpp>
@@ -103,6 +101,7 @@ using namespace log4cxx::net;
 #include "Inverters/interfaces/InverterBase.h"
 
 #include "DataFilters/interfaces/factories/IDataFilterFactory.h"
+#include "DataFilters/interfaces/IDataFilter.h"
 #include "configuration/CConfigHelper.h"
 
 #include "interfaces/CDebugHelper.h"
@@ -114,7 +113,6 @@ using namespace std;
 #ifdef HAVE_LIBLOG4CXX
 using namespace log4cxx;
 #endif
-
 
 /** this array of string specifies which sections int the config file must be present.
  * The program will abort if any of these is missing.
@@ -199,6 +197,8 @@ int main(int argc, char* argv[])
 	bool error_detected = false;
 	bool dumpconfig = false;
 	string configfile = "solarpowerlog.conf";
+	long autoterminate = 0;
+	string printsnippets;
 
 	progname = argv[0];
     dhc.Register(new CDebugObject<char*>("progname", progname));
@@ -214,36 +214,36 @@ int main(int argc, char* argv[])
 	using namespace boost::program_options;
 
 	options_description desc("Program Options");
-	desc.add_options()("help", "this message");
-	desc.add_options()("conf,c", value<string>(&configfile),
-			"specify configuration file");
-	desc.add_options()("version,v", "display solarpowerlog version");
-	desc.add_options()("background,b", value<bool>(&background)->zero_tokens(),
-			"run in background.");
-	desc.add_options()("dumpcfg", value<bool>(&dumpconfig)->zero_tokens(),
-			"Dump configuration structure, then exit");
-	desc.add_options()(
-			"chdir",
-			value<string>(&rundir),
-			"working directory for daemon (only used when running as a daemon). Defaults to /");
-	desc.add_options()(
-			"stdout",
-			value<string>(&daemon_stdout),
-			"redirect stdout to this file (only used when running as a daemon). Defaults to /dev/null");
-	desc.add_options()(
-			"stderr",
-			value<string>(&daemon_stderr),
-			"redirect stderr to this file (only used when running as a daemon). Defaults to /dev/null");
-
-	{
-		std::string pidfile_info = "create a pidfile after the daemon has been started. "
-				"(only used when running as a daemon.) Default: no pid file";
-
-	desc.add_options()(
-			"pidfile",
-			value<string>(&pidfile),
-			pidfile_info.c_str());
-	}
+	desc.add_options()
+	    ("help", "this message")
+	    ("conf,c", value<string>(&configfile), "specify configuration file")
+	    ("version,v", "display solarpowerlog version")
+	    ("background,b", value<bool>(&background)->zero_tokens(),
+	        "run in background.")
+	    ("dumpcfg", value<bool>(&dumpconfig)->zero_tokens(),
+	        "Dump configuration structure, then exit")
+	    ("chdir", value<string>(&rundir), "working directory for daemon "
+	        " (only used when running as a daemon). Defaults to /")
+	    ("stdout",value<string>(&daemon_stdout), "redirect stdout to this file "
+	        "(only used when running as a daemon). Defaults to /dev/null")
+	    ("stderr", value<string>(&daemon_stderr), "redirect stderr to this "
+	        "file (only used when running as a daemon). Defaults to /dev/null")
+	    ("pidfile", value<string>(&pidfile),
+			"create a pidfile after the daemon has been started. "
+			"(only used when running as a daemon.) Default: no pid file")
+	    ("autoterminate", value<long>(&autoterminate),
+	        "terminate after performing this amount of work. "
+	        "This feature is intended for debugging, e.g valgrind runs.")
+        ("printsnippet", value<string>(&printsnippets),
+            "print configuration snippets to stdout. "
+            "the parameter specifies which snippet should be generated and is "
+            "of the format <category>[::<subcategory>]::[<target>.] "
+            "category is either inverter, filter or communication. "
+            "subcategroy is for inverters specifing the manufacturer and "
+            "target is the final target to get the snippet from. Note that "
+            "this function is intended as development aid to keep snippets and code in sync. "
+            " solarpowerlog will exit after the snippet has been dumped."
+            );
 
 	variables_map vm;
 	try {
@@ -271,6 +271,85 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 #endif
+
+	if (!printsnippets.empty()) {
+	    // minimum bootstraping: Fake config and logging set to OFF.
+	    Registry::Instance().FakeConfig();
+
+	    BasicConfigurator::configure();
+        LoggerPtr l = Logger::getRootLogger();
+        l->setLevel(Level::toLevel(Level::OFF_INT));
+        Registry::Instance().GetMainLogger().SetLoggerLevel(Level::toLevel(Level::OFF_INT));
+
+	    std::string cat, subcat, target;
+	    try {
+	        size_t s = printsnippets.find("::");
+	        cat = printsnippets.substr(0,s);
+	        printsnippets = printsnippets.substr(s+2);
+
+	        if (cat == "inverter") {
+	            s = printsnippets.find("::");
+	            cat = printsnippets.substr(0,s);
+                printsnippets = printsnippets.substr(s+2);
+
+                std::auto_ptr<IInverterFactory>
+                    factory(InverterFactoryFactory::createInverterFactory(cat));
+
+                if (!factory.get()) {
+                    cerr << "printsnippet: Could not create inverter factory." << endl;
+                    return 1;
+                }
+
+                std::auto_ptr<IInverterBase>
+                    inverter(factory->Factory(printsnippets,"name","empty"));
+
+                if (!inverter.get()) {
+                    cerr << "printsnippet: Could not create inverter object." << endl;
+                    return 1;
+                }
+                std::auto_ptr<CConfigCentral> cfg(inverter->getConfigCentralObject(NULL));
+                if (!cfg.get()) {
+                    cerr << "printsnippet: Could not create inverter's configuration information." << endl;
+                    return 1;
+                }
+
+                cout << cfg->GetConfigSnippet();
+                return 0;
+
+	        } else if ( cat == "communication") {
+
+            } else if ( cat == "datafilter") {
+                s = printsnippets.find("::");
+                cat = printsnippets.substr(0,s);
+                IDataFilterFactory dffactory;
+                std::auto_ptr<IDataFilter> datafilter(
+                    dffactory.FactoryByName(cat, "name", "empty"));
+
+                if (!datafilter.get()) {
+                    cerr << "printsnippet: Could not create datafilter object." << endl;
+                    return 1;
+                }
+
+                std::auto_ptr<CConfigCentral> cfg(datafilter->getConfigCentralObject(NULL));
+                if (!cfg.get()) {
+                    cerr << "printsnippet: Could not create inverter's configuration information." << endl;
+                    return 1;
+                }
+
+                cout << cfg->GetConfigSnippet();
+                return 0;
+
+            } else {
+                cerr << "printsnippets: unkown category." << endl;
+                return 1;
+            }
+	    }
+	    catch (...) {
+	        cerr << "Error while handling printsnippets" << endl;
+	        return 1;
+	    }
+	    return 0;
+	}
 
 	if (!Registry::Instance().LoadConfig(configfile)) {
 		cerr << "Could not load configuration " << configfile << endl;
@@ -351,9 +430,10 @@ int main(int argc, char* argv[])
 
 	SetupSignalHandler();
 
-    /** bootstraping the system */
+	/** bootstraping the system */
 	ILogger mainlogger;
-	LOGDEBUG(mainlogger, "Instanciating Inverter objects");
+
+	LOGINFO(mainlogger, "Instanciating Inverter objects");
 
 	/** create the inverters via its factories. */
 	{
@@ -362,15 +442,31 @@ int main(int argc, char* argv[])
 
 		for (int i = 0; i < rt.getLength(); i++) {
 			std::string name;
-			std::string manufactor;
+			std::string manufacturer;
 			std::string model;
+
+			// alias for manufacturer is manufactor -- old
+            try {
+                manufacturer = (const char *)rt[i]["manufacturer"];
+            } catch (libconfig::SettingNotFoundException &e1) {
+                try {
+                    manufacturer = (const char *)rt[i]["manufactor"];
+                    LOGWARN(mainlogger, "NOTE: \"manufactor\" is depreciated. "
+                        "Please update to \"manufacturer\".");
+                } catch (libconfig::SettingNotFoundException &e2) {
+                    LOGFATAL(mainlogger,
+                        "Configuration Error: Required Setting was not found: \""
+                        << e1.getPath() << '\"');
+                    cleanup();
+                    exit(1);
+                }
+            }
 
 			try {
 				name = (const char *) rt[i]["name"];
-				manufactor = (const char *) rt[i]["manufactor"];
 				model = (const char *) rt[i]["model"];
-				LOGDEBUG(mainlogger,
-						name << " " << manufactor );
+				LOGINFO(mainlogger,
+						"Setting up inverter " << name << " (" << manufacturer << ")");
 			} catch (libconfig::SettingNotFoundException &e) {
 				LOGFATAL(mainlogger,
 						"Configuration Error: Required Setting was not found in \""
@@ -387,11 +483,11 @@ int main(int argc, char* argv[])
 			}
 
 			IInverterFactory *factory =
-					InverterFactoryFactory::createInverterFactory(manufactor);
+					InverterFactoryFactory::createInverterFactory(manufacturer);
 			if (!factory) {
 				LOGFATAL(mainlogger,
-						"Unknown inverter manufactor \""
-						<< manufactor << '\"');
+						"Unknown inverter manufacturer \""
+						<< manufacturer << '\"');
 				cleanup();
 				exit(1);
 			}
@@ -402,8 +498,8 @@ int main(int argc, char* argv[])
 			if (!inverter) {
 				LOGFATAL(mainlogger,
 						"Cannot create inverter model "
-						<< model << "for manufactor \""
-						<< manufactor << '\"');
+						<< model << " for manufacturer \""
+						<< manufacturer << '\"');
 
 				LOGFATAL(mainlogger,
 						"Supported models are: "
@@ -415,7 +511,7 @@ int main(int argc, char* argv[])
 			if (!inverter->CheckConfig()) {
 				LOGFATAL(mainlogger,
 						"Inverter " << name << " ( "
-						<< manufactor << ", " << model
+						<< manufacturer << ", " << model
 						<< ") reported configuration error");
 				cleanup();
 				exit(1);
@@ -427,12 +523,12 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	LOGDEBUG(mainlogger, "Instantiating DataFilter objects");
+	LOGINFO(mainlogger, "Instantiating data filter objects");
 
 	{
 		IDataFilterFactory factory;
-		/** create the data filters via its factories. */
 
+		/* create the data filters via its factories. */
 		string section = "logger.loggers";
 		libconfig::Setting & rt = Registry::Configuration()->lookup(section);
 
@@ -446,7 +542,7 @@ int main(int argc, char* argv[])
 				previousfilter = (const char *) rt[i]["datasource"];
 				type = (const char *) rt[i]["type"];
 
-				LOGDEBUG(mainlogger,
+				LOGINFO(mainlogger,
 						"Datafilter " << name << " ("
 						<< type << ") connects to "
 						<< previousfilter <<
@@ -507,7 +603,17 @@ int main(int argc, char* argv[])
 		}
 
 		Registry::GetMainScheduler()->DoWork(true);
-	}
+
+        if (autoterminate) {
+            LOGERROR(Registry::GetMainLogger(),
+                " !!!!! AUTOTERMINATE ENABLED. !!!!! left=" << autoterminate);
+
+            if (0 == --autoterminate) {
+                LOGDEBUG(Registry::GetMainLogger(), "Raising SIGTERM");
+                raise(SIGTERM);
+            }
+        }
+    }
 
 	// Ensure that the "terminator thread" (if spawn) is finished before
 	// handling the remaining events (or the broadcast shutdown event
@@ -519,6 +625,7 @@ int main(int argc, char* argv[])
 
 	LOGINFO(Registry::GetMainLogger(), "Terminating.");
 
+	Registry::Instance().Shutdown();
 	cleanup();
 	return 0;
 }

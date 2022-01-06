@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+Copyright (C) 2009-2014 Tobias Frost
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License as published by
@@ -63,25 +63,21 @@ Copyright (C) 2009-2012 Tobias Frost
  * For details describing how inverters, capabilites and datafilter work
  * together, please see \ref IInverterBase "this page".
  *
- *
- *
- *
- *
  * TODO DOCUMENT ME!
  */
 #include "patterns/IObserverObserver.h"
 #include "patterns/IObserverSubject.h"
 #include "Inverters/interfaces/InverterBase.h"
 #include "patterns/ICommand.h"
+#include "DataFilters/interfaces/factories/IDataFilterFactory.h"
+
 
 class IDataFilter : public IObserverObserver ,
 	public IInverterBase // The inverter, though the capabilites, also provides the
 // interface for being a subject (observer pattern)
 {
 protected:
-	IDataFilter( const string &name, const string & configurationpath ) :
-		IInverterBase(name, configurationpath, "datafilter")
-	{ }
+	IDataFilter( const string &name, const string & configurationpath );
 
 public:
 	virtual ~IDataFilter();
@@ -117,6 +113,9 @@ public:
 	 *  */
 	virtual CCapability *GetConcreteCapability( const string &identifier );
 
+	// datasource is config from the baseclass..
+	virtual CConfigCentral* getConfigCentralObject(CConfigCentral *parent);
+
 protected:
 	/// Inverter to connect to. Can also be a another DataFilter
 	/// (as data are exchanged over the IInverterBase Interface,
@@ -125,6 +124,9 @@ protected:
 	/// If the child wants to reveive data from multiple / different sources,
 	/// it also might use its own implementation
 	IInverterBase *base;
+
+protected:
+	std::string _datasource;
 
 };
 

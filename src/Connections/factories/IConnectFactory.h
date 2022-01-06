@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -31,6 +31,25 @@ Copyright (C) 2009-2012 Tobias Frost
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#ifdef HAVE_COMMS_ASIOTCPIO
+#define COMMS_ASIOTCP_ID "TCP/IP"
+#else
+#define COMMS_ASIOTCP_ID
+#endif
+
+#ifdef HAVE_COMMS_ASIOSERIAL
+#define COMMS_ASIOSERIAL_ID "RS2xx"
+#else
+#define COMMS_ASIOSERIAL_ID
+#endif
+
+#ifdef HAVE_COMMS_SHAREDCONNECTION
+#define COMMS_SHARED_ID "SharedConnection"
+#else
+#define COMMS_SHARED_ID
+#endif
+
 
 #include "Connections/interfaces/IConnect.h"
 

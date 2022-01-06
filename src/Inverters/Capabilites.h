@@ -1,20 +1,20 @@
 /* ----------------------------------------------------------------------------
  solarpowerlog -- photovoltaic data logging
 
-Copyright (C) 2009-2012 Tobias Frost
+ Copyright (C) 2009-2015 Tobias Frost
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  ----------------------------------------------------------------------------
  */
@@ -56,7 +56,7 @@ Copyright (C) 2009-2012 Tobias Frost
  *
  *\note The associated concrete value is unused.
  *
- * \sa The pseudo cap "force unsubsribe" is related.
+ * \sa The pseudo cap "force unsubscribe" is related.
  *
  * THIS CAPABILITY IS REQUIRED -- EVERY INVERTER HAS THIS ONE.  */
 #define CAPA_CAPAS_UPDATED  	 "CapabilityList Updated"
@@ -114,12 +114,23 @@ Copyright (C) 2009-2012 Tobias Frost
  * updated. But, as a exception to this, a inverter class might do runtime
  * detection of these parameters, if the inverter supports them.
  *
- * This one is the "human readable" manufactor of the Inverter.
+ * This one is the "human readable" manufacturer of the Inverter.
+ *
+ * \depreciated this capa should no longer be used. Use
+ *  CAPA_INVERTER_MANUFACTURER_NAME instead
  */
-
 #define CAPA_INVERTER_MANUFACTOR_NAME "Inverter Manufactor"
 #define CAPA_INVERTER_MANUFACTOR_TYPE std::string
 
+/** Basic information for the user -- these information are usually not
+ * updated. But, as a exception to this, a inverter class might do runtime
+ * detection of these parameters, if the inverter supports them.
+ *
+ * This one is the "human readable" manufacturer of the Inverter.
+ */
+
+#define CAPA_INVERTER_MANUFACTURER_NAME "Inverter Manufacturer"
+#define CAPA_INVERTER_MANUFACTURER_TYPE std::string
 
 /** Basic information for the user -- these information are usually not
  * updated. But, as a exception to this, a inverter class might do runtime
@@ -328,7 +339,7 @@ Copyright (C) 2009-2012 Tobias Frost
  * Type: float
  *
  * Optional.
- * 
+ *
  * */
 #define CAPA_INVERTER_DCPOWER_T1_NAME "DC Power Tracker 1"
 #define CAPA_INVERTER_DCPOWER_T1_TYPE float
@@ -400,9 +411,7 @@ Copyright (C) 2009-2012 Tobias Frost
 
 // IEE IEA IED
 
-/** Error Currents +Ground Voltage
- *
- * 
+/** Error Currents Ground Voltage
  *
  * Type: Float
  *
@@ -421,7 +430,6 @@ Copyright (C) 2009-2012 Tobias Frost
 /** Inverter Status Codes
  *
  */
-
 enum InverterStatusCodes
 {
 	/**  offline   -- the inverter is not responsing to queries (e.g night)
@@ -476,7 +484,7 @@ enum InverterStatusCodes
  * This also should contain information, why the inverter is in that state,
  * if available.
  *
- * If available, one might give also the manufactor's statuscode
+ * If available, one might give also the manufacturer's statuscode
  *
  * Examples:
  * NOT FEEDING -- Solar radiation insufficient

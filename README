@@ -9,18 +9,11 @@ Currently, solarpowerlog is working with the Sputnik Solarmax inverter, but the
 framework supports any kind of inverters and even other energy generation systems.
 (Some coding required -- all it needs is to create the inverter class)
 
-Solarpowerlog, even some years old and quite stable, is alsway under development.
-If you are a coder, want to write docs, please see the "help wanted" section ;-)
+Solarpowerlog is mature software and (for my purposes) feature-complete.
 
+As with the nature of FOSS, feel free to contribute new features. The preferrded
+method is pull requests on github: https://github.com/coldtobi/solarpowerlog
 
-GETTING SUPPORT
-===============
-
-For some online documentation please see:
-http://sourceforge.net/apps/mediawiki/solarpowerlog/index.php
-
-Please also consider posting to the mailing lists if you need help:
-http://sourceforge.net/mail/?group_id=259217
 
 HELP WANTED
 ===========
@@ -32,11 +25,16 @@ Don't forget, this is the spirit of open source!
 Especially this fields needs support:
 - Write some user documentation.
 - Support for other inverters beside the Sputnik ones (to test the code, you
-  should have acces to one)
+  should have access to one)
 - Programming for some tools making use of the data.
 - Documentation (manuals, code documentation, examples, ....)
 - and bug crushing. (not that I am aware of bugs, but I'm sure they are hiding)
-- porters for Windows
+
+INSTALLATION
+============
+
+Before compiling yourself, solarpowerlog is available in Debian and derivates,
+like Ubuntu. Look for the package "solarpowerlog".
 
 GETTING THE SOURCE
 ==================
@@ -58,12 +56,13 @@ debian  	-- repository to store debian packaging files
 upstream/x.yy   -- snapshot for the releases (starting at 0.21)
 (master 	-- this was an ancient branch for the last release -- please do not use it)
 
-I recommend using the repository instead the relased tarballs. If you want to contribue, please make sure that you work on trunk.
+I recommend using the repository instead the relased tarballs. If you want to
+contribue, please make sure that you work on trunk.
 
 BUILDING
 ========
 
-Option a) "normal way" (autotools)
+solarpowerlog uses autotools.
 
 To build solarpowerlog, just use the usual
 ./bootstrap.sh
@@ -71,34 +70,6 @@ To build solarpowerlog, just use the usual
 make
 
 for a guide, please see the file INSTALL. (it will be created by ./bootstrap)
-
-
-Option b) make a Debian package
-
-Note: you'll need the Debian branch of the git repository.
-
-b1) Checkout the Debian branch, fast-forward the changes from the branch trunk
-(if wanted) and then build the package
-
-git checkout debian
-git merge trunk  # merge latest changes (optional)
-dpkg-buildpackage
-
-b2) using tools/make-slp-dist
-You can also use make-slp-dist (in tools) to automate the building. However, you need to have
-- git installed and the solarpowerlog git repository available
-- pbuilder installed and setup
-- git2cl installed.
-
-make-slp-dist will then do the following:
-- issue make-dist and make-distcheck for basic checks,
-- then extract the tarball generated (from make-dist) into a staging directory (../stagedir-debbuild/solarpowerlog-<version>)
-- merge the debian directory into the staging-directory
-- pdebuild from this directory
-- dpkg-buildpackage from this directory
-- run lintian on the generated package
-
-NOTE: make-slp-dist is crafted to suit MY machine, you might want to modify it, especially if you are not running on a triple core CPU.
 
 Build-dependencies:
 ===================
@@ -110,16 +81,14 @@ autoconf libtool libconfig++-dev libboost-dev libboost-system-dev libboost-threa
 libdbi-dev
 
 Full-fledged (additional)
-liblog4cxx10-dev
+liblog4cxx-dev libcppdb-dev
 
-Note: dpkg-buildpackage will always ask for the full set and it will tell you
-if something is missing.
-
-Note: apt-get build-dep solarpowerlog will get you started.
+Note: On Debian systems, apt-get build-dep solarpowerlog will get you started.
 
 CONFIGURATION FILE
 ==================
 
 Please see the directory example_confs for examples how to configure solarpowerlog.
 You can specify the config file to be used with the -c parameter:
-solarpowerlog -c <path-to-config-file> 
+solarpowerlog -c <path-to-config-file>
+

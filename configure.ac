@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([solarpowerlog],[0.24],[tobi@coldtobi.de])
+AC_INIT([solarpowerlog],[0.25],[tobi@coldtobi.de])
 AC_PREREQ([2.68])
 
 # use own directory for the autotools stuff
@@ -9,7 +9,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 LT_INIT
 
-CPPFLAGS="-Wall -Wextra"
+CPPFLAGS+=" -Wall -Wextra"
 
 # we want this header to be created.
 AC_CONFIG_HEADERS(src/config.h)
@@ -17,21 +17,11 @@ AC_CONFIG_HEADERS(src/config.h)
 # TODO
 #AC_COPYRIGHT (copyright-notice )
 
-AM_INIT_AUTOMAKE([1.9 tar-pax])
+AM_INIT_AUTOMAKE([1.9 dist-xz no-dist-gzip dist-zip tar-pax subdir-objects])
 
 AC_CONFIG_SRCDIR([src/solarpowerlog.cpp])
 
 # configure extlibs
-
-# commmented out, as currently dbixx is not used...
-#AC_CHECK_FILE([extlibs/dbixx/configure])
-#
-#if test "x$ac_cv_file_extlibs_dbixx_configure" != "xno" ; then
-#	AC_MSG_NOTICE([dbixx found and will be configured])
-#	AC_CONFIG_SUBDIRS([extlibs/dbixx])
-#fi
-#AM_CONDITIONAL([MAKE_DBIXX],test "x$ac_cv_file_extlibs_dbixx_configure" != "xno")
-#
 
 ### options for some features that might not always be needed
 ### (for shrinking the footprint)
@@ -138,7 +128,6 @@ else
 	AC_MSG_NOTICE([Support for the Dumb Dumper disabled as requested.])
 fi
 
-
 # CSV Writer
 AC_ARG_ENABLE([csvlogger],
     [AS_HELP_STRING([--disable-csvlogger],
@@ -163,12 +152,23 @@ AC_ARG_ENABLE([htmlwriter],
 if test "x$enable_htmlwriter" != "xno" ; then
     AC_DEFINE([HAVE_FILTER_HTMLWRITER], [1], [HTML Writer Support])
     enable_htmlwriter=yes
-    CTEMPLATE_LIB=-lctemplate
-    CTEMPLATE_CFLAGS="-I ../extlibs"
-    CTEMPLATE_DEPS=libctemplate.a
 else
     AC_MSG_NOTICE([Support for the HTMLWriter disabled as requested.])
 fi
+
+# Database Writer
+AC_ARG_ENABLE([dbwriter],
+    [AS_HELP_STRING([--disable-dbwriter],
+            [Do not support the database writer module to push results to a database.])
+    ]
+)
+
+if test "x$enable_dbwriter" != "xno" ; then
+    enable_dbwriter=yes
+else
+    AC_MSG_NOTICE([Support for the DBWriter disabled as requested.])
+fi
+
 
 ## Communication Methods
 
@@ -215,10 +215,6 @@ else
     enable_sharedcomms=no
 fi
 
-
-AC_SUBST(CTEMPLATE_LIB)
-AC_SUBST(CTEMPLATE_CFLAGS)
-AC_SUBST(CTEMPLATE_DEPS)
 
 ### Checks for programs.
 # C Compiler
@@ -310,15 +306,66 @@ if test "x$enable_commandlineoptions" = "xyes"; then
 	fi
 fi
 
+## cppdb library (only needed if dbwriter has been enabled)
+if test "x$enable_dbwriter" == "xyes" ; then
+	dbwriter_dependencies_fulfilled="missing"
+	AC_MSG_CHECKING(cppdb database access library)
+	AC_LANG(C++)
+	SAVED_LIBS=$LIBS
+	LIBS="$LIBS -lcppdb"
+	AC_LINK_IFELSE(
+	    [AC_LANG_PROGRAM([#include <cppdb/frontend.h>], [cppdb::session sql("")])],
+	    [CPPDB_LIBS="$CPPDB_LIBS -lcppdb"]
+	    [AC_DEFINE(HAVE_CPPDB,1,[Did we find the cppdb library?])]
+	    [AC_MSG_RESULT(yes)],
+	    [AC_MSG_RESULT(no)]
+	    [AC_MSG_NOTICE(Missing depdency for dbwriter: cppdb)]
+	    [dbwriter_dependencies_fulfilled="$dbwriter_dependencies_fulfilled cppdb"]
+	    )
+	LIBS=$SAVED_LIBS
+	if test "x$CPPDB_LIBS" != "x" ; then
+		 AC_DEFINE([HAVE_FILTER_DBWRITER], [1], [DB Writer Support])
+		 AC_SUBST(CPPDB_LIBS)
+	else
+		 enable_dbwriter="no (dependency problem: $dbwriter_dependencies_fulfilled)"
+	fi
+fi
+
 ### Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_HEADER_TIME
 AC_HEADER_ASSERT
 AC_TYPE_SIZE_T
 
+### Checks for functions.
+AC_CHECK_FUNCS([socket])
+AC_CHECK_FUNCS([memset])
+AC_CHECK_FUNCS([modf])
+AC_CHECK_FUNCS([strdup])
+AC_CHECK_FUNCS([strncasecmp])
+AC_CHECK_FUNCS([strrchr])
+AC_CHECK_FUNCS([strtol])
+AC_CHECK_FUNCS([strtoul])
+AC_FUNC_FORK
+AC_FUNC_MALLOC
 
-### Checks for library functions.
-#AC_CHECK_FUNCS([socket])
+### Check for types
+AC_TYPE_INT32_T
+AC_TYPE_UINT32_T
+AC_TYPE_PID_T
+
+### Check for language features
+AC_C_INLINE
+
+### Checks for headers
+AC_CHECK_HEADERS([fcntl.h])
+AC_CHECK_HEADERS([stddef.h])
+AC_CHECK_HEADERS([syslog.h])
+
+## check for backtrace_symbols_fd()
+AC_CHECK_FUNC([backtrace_symbols_fd],
+	AC_DEFINE([HAVE_BACKTRACE_SYMBOLS_FD], 1, [1 if backtraces are possible])
+	)
 
 # Cygwin has no open_memstream, at least not in the current stable version.
 AC_CHECK_FUNC(open_memstream, AC_DEFINE(HAVE_OPEN_MEMSTREAM, 1, [1 if open_memstream is available]))
@@ -339,7 +386,6 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([]);
 AC_MSG_NOTICE([CONFIGURATION SUMMARY:]);
-
 
 ### Print summary
 AC_MSG_NOTICE([Logging support: ........................... $enable_logging])
@@ -362,4 +408,5 @@ AC_MSG_NOTICE([FILTERS AND LOGGERS:]);
 AC_MSG_NOTICE([CSV logger support: ........................ $enable_csvlogger])
 AC_MSG_NOTICE([Dumb Dumper support: ....................... $enable_dumbdumper])
 AC_MSG_NOTICE([HTML Writer support: ....................... $enable_htmlwriter])
+AC_MSG_NOTICE([DB Writer support: ......................... $enable_dbwriter])
 
