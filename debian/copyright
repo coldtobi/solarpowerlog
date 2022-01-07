@@ -4,27 +4,24 @@ Upstream-Contact: tobi@coldtobi.de
 Source: https://github.com/coldtobi/solarpowerlog
 
 Files: *
-Copyright: 2009-2011 Tobias Frost <tobi@coldtobi.de>
+Copyright: 2009-2022 Tobias Frost <tobi@coldtobi.de>
 License: GPL-3.0+
 
 Files: src/*.h
-Copyright: 2009-2011 Tobias Frost <tobi@coldtobi.de>
+Copyright: 2009-2022 Tobias Frost <tobi@coldtobi.de>
 License: LGPL-3.0+
-
-Files: src/*.cpp
-Copyright: 2009-2011 Tobias Frost <tobi@coldtobi.de>
-License: GPL-3.0+
-
-Files: debian/*
-Copyright: 2011-2018 Tobias Frost <tobi@debian.org>
-License: GPL-3.0+
 
 Files: src/ctemplate/*
 Copyright: 2009 Stephen C. Losen
 License: GPL-1.0+
 
+Files: debian/*
+Copyright: 2011-2022 Tobias Frost <tobi@debian.org>
+License: GPL-3.0+
+
+
 Files: m4/boost.m4
-Copyright: 2007-2011  Benoit Sigoure <tsuna@lrde.epita.fr>
+Copyright: 2007-2011,2014  Benoit Sigoure <tsuna@lrde.epita.fr>
 License: GPL-3.0-with-autoconf-exception
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
