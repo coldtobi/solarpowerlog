@@ -1,4 +1,4 @@
-solarpowerlog (0.25-1) UNRELEASED; urgency=medium
+solarpowerlog (0.25-1) unstable; urgency=medium
 
   * New upstream release.
     - All patches applied, remove d/patches.
@@ -12,7 +12,7 @@ solarpowerlog (0.25-1) UNRELEASED; urgency=medium
   * Use debhelper compat level 13.
   * Also install the new example configs.
 
- -- Tobias Frost <tobi@debian.org>  Thu, 06 Jan 2022 22:54:24 +0100
+ -- Tobias Frost <tobi@debian.org>  Fri, 07 Jan 2022 14:20:10 +0100
 
 solarpowerlog (0.24-9) unstable; urgency=medium
 
