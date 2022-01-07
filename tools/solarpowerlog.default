@@ -5,10 +5,6 @@
 # This is a POSIX shell fragment
 #
 
-# Enable the automatic start?
-# default is "no start", as you first need to configure solarpowerlog anyway.
-# ENABLED=1
-
 # Where to cd to before executing solarpowerlog
 RUNDIR=/etc/solarpowerlog
 
