@@ -2,6 +2,7 @@ solarpowerlog (0.25-1) UNRELEASED; urgency=medium
 
   * New upstream release.
     - All patches applied, remove d/patches.
+  * Primary project side is now GitHub, updating accordingly in d/*.
 
  -- Tobias Frost <tobi@debian.org>  Thu, 06 Jan 2022 22:54:24 +0100
 
