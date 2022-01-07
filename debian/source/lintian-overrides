@@ -2,3 +2,7 @@
 solarpowerlog source: very-long-line-length-in-source-file configure*
 solarpowerlog source: very-long-line-length-in-source-file m4/libtool.m4*
 solarpowerlog source: very-long-line-length-in-source-file */Makefile.in*
+
+# Do not want this option, lintian.
+solarpowerlog source: prefer-uscan-symlink filenamemangle*
+
