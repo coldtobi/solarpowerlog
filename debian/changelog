@@ -10,6 +10,7 @@ solarpowerlog (0.25-1) UNRELEASED; urgency=medium
   * Update lintian overrides to address some false positives.
   * Bump S-V to 4.6.0 -- no changes required.
   * Use debhelper compat level 13.
+  * Also install the new example configs.
 
  -- Tobias Frost <tobi@debian.org>  Thu, 06 Jan 2022 22:54:24 +0100
 
