@@ -1,3 +1,11 @@
-# After discussion on debian-mentors, it is better to currently ignore this warning until discussion has been completed.
-# See #710519, #683654 and #710571
-solarpowerlog:  init.d-script-call-internal-API etc/init.d/solarpowerlog
+# false positive, this is patched in d/rules to make lintian happy.
+solarpowerlog: init.d-script-should-always-start-service etc/default/solarpowerlog*
+
+# send a patch.
+solarpowerlog: missing-systemd-service-for-init.d-script
+solarpowerlog: spelling-error-in-binary
+
+# autotools generated files...
+solarpowerlog source: very-long-line-length-in-source-file configure*
+solarpowerlog source: very-long-line-length-in-source-file m4/libtool.m4*
+solarpowerlog source: very-long-line-length-in-source-file */Makefile.in

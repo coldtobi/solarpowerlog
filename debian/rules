@@ -9,6 +9,10 @@
 override_dh_autoreconf:
 	cp tools/solarpowerlog.init debian/
 	cp tools/solarpowerlog.default debian/
+	# Fix Lintian init.d-script-should-always-start-service
+	sed -i "/# Enable the automatic start?/d" debian/solarpowerlog.default
+	sed -i "/# default is \"no start\", as you first need to configure solarpowerlog anyway/d" debian/solarpowerlog.default
+	sed -i "s/# ENABLED/ENABLED/g" debian/solarpowerlog.default
 	# needed when building directly from the git repository.
 	# otherwise some files are missing.
 	dh_autoreconf ./bootstrap.sh
@@ -17,3 +21,7 @@ override_dh_installdocs:
 	# do not install the GPL / LGPL license files
 	rm -f  debian/solarpowerlog/usr/share/doc/solarpowerlog/*GPL*
 	dh_installdocs -X GPL
+
+override_dh_installinit:
+	# Without configuration first, start will fail.
+	dh_installinit --no-enable
