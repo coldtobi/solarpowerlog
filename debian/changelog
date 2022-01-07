@@ -7,7 +7,7 @@ solarpowerlog (0.25-1) UNRELEASED; urgency=medium
   * Adding upstream key for signature verification.
   * Update d/copyright years.
   * Fixing init.d-script-should-always-start-service by defaulting to enabled.
-  * Update lintian overrides to adress some false positives.
+  * Update lintian overrides to address some false positives.
   * Bump S-V to 4.6.0 -- no changes required.
 
  -- Tobias Frost <tobi@debian.org>  Thu, 06 Jan 2022 22:54:24 +0100

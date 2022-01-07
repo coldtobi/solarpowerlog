@@ -4,8 +4,3 @@ solarpowerlog: init.d-script-should-always-start-service etc/default/solarpowerl
 # send a patch.
 solarpowerlog: missing-systemd-service-for-init.d-script
 solarpowerlog: spelling-error-in-binary
-
-# autotools generated files...
-solarpowerlog source: very-long-line-length-in-source-file configure*
-solarpowerlog source: very-long-line-length-in-source-file m4/libtool.m4*
-solarpowerlog source: very-long-line-length-in-source-file */Makefile.in
