@@ -1,3 +1,9 @@
+solarpowerlog (0.25-1~bpo11+1) bullseye-backports; urgency=medium
+
+  * Rebuild for bullseye-backports.
+
+ -- Tobias Frost <tobi@debian.org>  Sat, 07 May 2022 08:34:07 +0200
+
 solarpowerlog (0.25-1) unstable; urgency=medium
 
   * New upstream release.

@@ -3,7 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Tobias Frost <tobi@debian.org>
 Vcs-Browser: https://github.com/coldtobi/solarpowerlog/tree/debian
-Vcs-Git: https://github.com/coldtobi/solarpowerlog.git -b debian
+Vcs-Git: https://github.com/coldtobi/solarpowerlog.git -b debian-backports-bullseye
 Build-Depends: debhelper-compat (= 13),
                libboost-dev,
                libboost-date-time-dev,
