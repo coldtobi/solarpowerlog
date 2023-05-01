@@ -219,7 +219,7 @@ bool CHTMLWriter::CheckConfig()
 
 	std::auto_ptr<CConfigCentral> cc(getConfigCentralObject(NULL));
 
-	bool fail = cc->CheckConfig(logger, configurationpath);
+	bool fail = !cc->CheckConfig(logger, configurationpath);(cc->CheckConfig(logger, configurationpath));
 
     if (!fail && !base) {
         LOGERROR(logger, "Cannot find datassource with the name "
