@@ -1,8 +1,8 @@
-solarpowerlog (0.25-2) UNRELEASED; urgency=medium
+solarpowerlog (0.25-2) unstable; urgency=medium
 
-  * Cherry-pick fixes for broken htmlwriter and dbfilter.
+  * Cherry-pick fixes for broken htmlwriter and dbfilter. (Closes: #1035333)
 
- -- Tobias Frost <tobi@debian.org>  Mon, 01 May 2023 09:36:19 +0200
+ -- Tobias Frost <tobi@debian.org>  Mon, 01 May 2023 10:00:20 +0200
 
 solarpowerlog (0.25-1) unstable; urgency=medium
 
