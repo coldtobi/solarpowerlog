@@ -1,0 +1,48 @@
+commit e77389f3b88794b2ba57624052195e3b399cc1a2
+Author: Tobias Frost <tobi@debian.org>
+Date:   Mon May 1 09:31:47 2023 +0200
+
+    [DBWriter] Bugfix: Use db_password (instead db_passwd) for password configuration
+    
+    (to be aligned with the examples)
+
+diff --git a/src/DataFilters/DBWriter/CDBWriterFilter.cpp b/src/DataFilters/DBWriter/CDBWriterFilter.cpp
+index 6e3e141..4242a6b 100644
+--- a/src/DataFilters/DBWriter/CDBWriterFilter.cpp
++++ b/src/DataFilters/DBWriter/CDBWriterFilter.cpp
+@@ -193,7 +193,7 @@ bool CDBWriterFilter::CheckConfig()
+             fail = true;
+         }
+         if (_cfg_cache_db_passwd.empty()) {
+-            _missing_req_parameter(logger, _cfg_cache_db_type, "db_passwd");
++            _missing_req_parameter(logger, _cfg_cache_db_type, "db_password");
+             fail = true;
+         }
+         if (_cfg_cache_db_database.empty()) {
+@@ -231,7 +231,7 @@ bool CDBWriterFilter::CheckConfig()
+         }
+ 
+         if (_cfg_cache_db_passwd.empty()) {
+-            _missing_req_parameter(logger, _cfg_cache_db_type, "db_passwd");
++            _missing_req_parameter(logger, _cfg_cache_db_type, "db_password");
+             fail = true;
+         }
+         if (_cfg_cache_db_database.empty()) {
+@@ -270,7 +270,7 @@ bool CDBWriterFilter::CheckConfig()
+         }
+ 
+         if (!_cfg_cache_db_passwd.empty()) {
+-            _wrong_parameter(logger, _cfg_cache_db_type, "db_passwd");
++            _wrong_parameter(logger, _cfg_cache_db_type, "db_password");
+             fail = true;
+         }
+ 
+@@ -701,7 +701,7 @@ CConfigCentral* CDBWriterFilter::getConfigCentralObject(CConfigCentral* parent)
+              _cfg_cache_db_mode, std::string(""))
+         ("db_user", Description_DBWriter_db_user,
+             _cfg_cache_db_user, std::string(""))
+-        ("db_passwd", Description_DBWriter_db_passwd,
++        ("db_password", Description_DBWriter_db_passwd,
+             _cfg_cache_db_passwd, std::string(""))
+         ("db_database", Description_DBWriter_db_database,
+             _cfg_cache_db_database, std::string(""))

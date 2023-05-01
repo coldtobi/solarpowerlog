@@ -1,0 +1,19 @@
+commit e4bd00f13656ff8815e52f23a59daff46271d646
+Author: Tobias Frost <tobi@debian.org>
+Date:   Mon May 1 09:26:31 2023 +0200
+
+    [HTMLWriter] Bugfix: Logic error in rejected valid configuration.
+
+diff --git a/src/DataFilters/HTMLWriter/CHTMLWriter.cpp b/src/DataFilters/HTMLWriter/CHTMLWriter.cpp
+index 192fe05..2c7ab54 100644
+--- a/src/DataFilters/HTMLWriter/CHTMLWriter.cpp
++++ b/src/DataFilters/HTMLWriter/CHTMLWriter.cpp
+@@ -219,7 +219,7 @@ bool CHTMLWriter::CheckConfig()
+ 
+ 	std::auto_ptr<CConfigCentral> cc(getConfigCentralObject(NULL));
+ 
+-	bool fail = cc->CheckConfig(logger, configurationpath);
++	bool fail = !cc->CheckConfig(logger, configurationpath);(cc->CheckConfig(logger, configurationpath));
+ 
+     if (!fail && !base) {
+         LOGERROR(logger, "Cannot find datassource with the name "
