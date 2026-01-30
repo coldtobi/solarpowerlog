@@ -10,6 +10,10 @@ solarpowerlog (0.26-1) UNRELEASED; urgency=medium
     /usr/share/solapowerlog/examples.
   * Update B-D:s/pkg-config/pkgconf/
   * Remove Depends on obsolete lsb-base
+  * Update to S-V 4.7.3
+    - Remove Priority-Field from d/control.
+    - Introduce systemd service file (see above)
+  * Remove obsolete Rules-Requires-Root.
 
  -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
 
