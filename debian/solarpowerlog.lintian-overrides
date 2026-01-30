@@ -1,6 +1,0 @@
-# false positive, this is patched in d/rules to make lintian happy.
-solarpowerlog: init.d-script-should-always-start-service etc/default/solarpowerlog*
-
-# send a patch.
-solarpowerlog: missing-systemd-service-for-init.d-script
-solarpowerlog: spelling-error-in-binary

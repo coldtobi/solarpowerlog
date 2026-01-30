@@ -1,4 +1,4 @@
-solarpowerlog (0.26-1) UNRELEASED; urgency=medium
+solarpowerlog (0.26-1) unstable; urgency=medium
 
   * New upstream version.
   * Drop patches, included in upstream version.
@@ -14,8 +14,9 @@ solarpowerlog (0.26-1) UNRELEASED; urgency=medium
     - Remove Priority-Field from d/control.
     - Introduce systemd service file (see above)
   * Remove obsolete Rules-Requires-Root.
+  * Cleanup on lintian overrides.
 
- -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
+ -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 20:06:53 +0100
 
 solarpowerlog (0.25-2) unstable; urgency=medium
 

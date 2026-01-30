@@ -1,6 +1,7 @@
 [Unit]
 Description=Solarpowerlog queries inverters and logs their data
 After=network.target
+Documentation=man:solarpowerlog
 
 [Service]
 Type=simple

@@ -1,6 +1,6 @@
 solarpowerlog (0.26-1) unstable; urgency=medium
 
-  * systemd service support
+  systemd service support
 
     This version introduces a systemd service file for solarpowerlog. Existing
     defaults compared to the init.d scripts have changed, so some
