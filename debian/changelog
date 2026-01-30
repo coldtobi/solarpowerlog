@@ -1,3 +1,10 @@
+solarpowerlog (0.26-1) UNRELEASED; urgency=medium
+
+  * New upstream version. 
+  * Drop patches, included in upstream version. 
+
+ -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
+
 solarpowerlog (0.25-2) unstable; urgency=medium
 
   * Cherry-pick fixes for broken htmlwriter and dbfilter. (Closes: #1035333)
