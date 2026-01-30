@@ -15,7 +15,7 @@ Build-Depends: debhelper-compat (= 13),
                libconfig++-dev,
                liblog4cxx-dev,
                libtool,
-               pkg-config
+               pkgconf
 Rules-Requires-Root: no
 Standards-Version: 4.6.0
 Homepage: https://github.com/coldtobi/solarpowerlog
@@ -23,7 +23,7 @@ Homepage: https://github.com/coldtobi/solarpowerlog
 Package: solarpowerlog
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}, lsb-base (>= 3.2-14)
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: photovoltaic data logging
  The program's purpose is to track and log data from photovoltaic inverters,
  collect power data and store them. Also a purpose is to provide an interface

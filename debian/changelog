@@ -8,6 +8,8 @@ solarpowerlog (0.26-1) UNRELEASED; urgency=medium
     - don't install the logrorate config
     The old init.d/logrotate files are still available in 
     /usr/share/solapowerlog/examples.
+  * Update B-D:s/pkg-config/pkgconf/
+  * Remove Depends on obsolete lsb-base
 
  -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
 
