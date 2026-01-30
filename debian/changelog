@@ -1,7 +1,7 @@
 solarpowerlog (0.26-1) UNRELEASED; urgency=medium
 
-  * New upstream version. 
-  * Drop patches, included in upstream version. 
+  * New upstream version.
+  * Drop patches, included in upstream version.
 
  -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
 
