@@ -44,9 +44,9 @@ http://sourceforge.net/projects/solarpowerlog/files/solarpowerlog/
 or you can use the git repository to get the latest source.
 
 The repository is located at:
-git://solarpowerlog.git.sourceforge.net/gitroot/solarpowerlog/solarpowerlog
+https://github.com/coldtobi/solarpowerlog.git
 and the command
-git clone git://solarpowerlog.git.sourceforge.net/gitroot/solarpowerlog/solarpowerlog
+git clone https://github.com/coldtobi/solarpowerlog.git
 should get you a copy.
 
 solarpowerlog has currently those main branches:
