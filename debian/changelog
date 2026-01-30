@@ -2,6 +2,12 @@ solarpowerlog (0.26-1) UNRELEASED; urgency=medium
 
   * New upstream version.
   * Drop patches, included in upstream version.
+  * Move to use a systemd unit file. Closes: #1039376.
+    - ship a service file
+    - don't install init.d script
+    - don't install the logrorate config
+    The old init.d/logrotate files are still available in 
+    /usr/share/solapowerlog/examples.
 
  -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 18:28:13 +0100
 

@@ -1,0 +1,25 @@
+solarpowerlog (0.26-1) unstable; urgency=medium
+
+  * systemd service support
+
+    This version introduces a systemd service file for solarpowerlog. Existing
+    defaults compared to the init.d scripts have changed, so some
+    reconfiguration may be needed. systemd's override snippets 
+
+    - /etc/default/solarpowerlog is no longer used.
+    - Logging is now handled via journald. The old log directory
+      (/var/log/solarpowerlog) is no longer used and can be removed. You can
+      still configure logging to files using log4cxx or override the service
+      to redirect output via command line options.
+    - DynamicUser=yes is enabled by default for improved security. This limits
+      which paths the service can write to. Additional write access can be
+      granted using systemd's ReadWritePaths= directive.
+    - Any further configuration changes, such as adjusting command line options
+      or modifying write paths, should be done via systemd overrides
+      (e.g., `systemctl edit solarpowerlog.service`).
+
+    If you still need the old init.d scripts, they are available at
+    /usr/share/solarpowerlog/examples/, but are provided without further
+    support.
+
+ -- Tobias Frost <tobi@debian.org>  Fri, 30 Jan 2026 19:19:23 +0100

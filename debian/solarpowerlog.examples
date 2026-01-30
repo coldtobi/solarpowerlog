@@ -1,1 +1,4 @@
 example_confs/*
+tools/solarpowerlog.init
+tools/solarpowerlog.default
+tools/solarpowerlog.logrotate

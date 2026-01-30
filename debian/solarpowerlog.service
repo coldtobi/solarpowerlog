@@ -1,0 +1,16 @@
+[Unit]
+Description=Solarpowerlog queries inverters and logs their data
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+#SupplementaryGroup=www-data
+
+WorkingDirectory=/etc/solarpowerlog
+ExecStart=/usr/bin/solarpowerlog -c /etc/solarpowerlog/solarpowerlog.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
