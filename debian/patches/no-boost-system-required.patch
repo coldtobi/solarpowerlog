@@ -1,0 +1,355 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -291,7 +291,6 @@
+ BOOST_ASIO()
+ 
+ #Check for boost libraries
+-BOOST_SYSTEM()
+ BOOST_THREADS()
+ 
+ #BOOST_DATE_TIME()
+--- a/m4/boost.m4
++++ b/m4/boost.m4
+@@ -22,7 +22,7 @@
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+ m4_define([_BOOST_SERIAL], [m4_translit([
+-# serial 36
++# serial 39
+ ], [#
+ ], [])])
+ 
+@@ -226,7 +226,7 @@
+   AC_CACHE_CHECK([for Boost's header version],
+     [boost_cv_lib_version],
+     [m4_pattern_allow([^BOOST_LIB_VERSION$])dnl
+-     _BOOST_SED_CPP([[/^boost-lib-version = /{s///;s/[\" ]//g;p;q;}]],
++     _BOOST_SED_CPP([[/^.*boost-lib-version = /{s///;s/[\" ]//g;p;q;}]],
+                     [#include <boost/version.hpp>
+ boost-lib-version = BOOST_LIB_VERSION],
+     [boost_cv_lib_version=`cat conftest.i`])])
+@@ -1332,11 +1332,16 @@
+ # --------------------------------
+ # Look for Boost.System.  For the documentation of PREFERRED-RT-OPT, see the
+ # documentation of BOOST_FIND_LIB above.  This library was introduced in Boost
+-# 1.35.0.
++# 1.35.0 and is header only since 1.70.
+ BOOST_DEFUN([System],
+-[BOOST_FIND_LIB([system], [$1],
++[
++if test $boost_major_version -ge 170; then
++  BOOST_FIND_HEADER([boost/system/error_code.hpp])
++else
++  BOOST_FIND_LIB([system], [$1],
+                 [boost/system/error_code.hpp],
+                 [boost::system::error_code e; e.clear();], [], [], [$2])
++fi
+ ])# BOOST_SYSTEM
+ 
+ 
+@@ -1615,6 +1620,8 @@
+   # I'm not sure about my test for `il' (be careful: Intel's ICC pre-defines
+   # the same defines as GCC's).
+   for i in \
++    "defined __clang__ && __clang_major__ == 14 && __clang_minor__ == 0 @ clang140" \
++    "defined __clang__ && __clang_major__ == 13 && __clang_minor__ == 0 @ clang130" \
+     "defined __clang__ && __clang_major__ == 12 && __clang_minor__ == 0 @ clang120" \
+     "defined __clang__ && __clang_major__ == 11 && __clang_minor__ == 1 @ clang111" \
+     "defined __clang__ && __clang_major__ == 11 && __clang_minor__ == 0 @ clang110" \
+@@ -1628,6 +1635,8 @@
+     "defined __clang__ && __clang_major__ == 3 && __clang_minor__ == 9 @ clang39" \
+     "defined __clang__ && __clang_major__ == 3 && __clang_minor__ == 8 @ clang38" \
+     "defined __clang__ && __clang_major__ == 3 && __clang_minor__ == 7 @ clang37" \
++    _BOOST_mingw_test(11, 2) \
++    _BOOST_gcc_test(11, 2) \
+     _BOOST_mingw_test(11, 1) \
+     _BOOST_gcc_test(11, 1) \
+     _BOOST_mingw_test(10, 3) \
+--- a/src/Connections/CConnectSerialAsio.cpp
++++ b/src/Connections/CConnectSerialAsio.cpp
+@@ -48,10 +48,7 @@
+ 
+ #include "configuration/CConfigHelper.h"
+ 
+-#include <boost/asio/write.hpp>
+-#include <boost/asio/io_service.hpp>
+-#include <boost/asio/ip/tcp.hpp>
+-#include <boost/asio/streambuf.hpp>
++#include <boost/asio.hpp>
+ 
+ #include <boost/algorithm/string.hpp>
+ 
+@@ -100,7 +97,7 @@
+ CConnectSerialAsio::CConnectSerialAsio(const string &configurationname) :
+     IConnect(configurationname),_cfg_characterlen('8'), _cfg_baudrate(9600)
+ {
+-    ioservice = new io_service;
++    ioservice = new boost::asio::io_context;
+     port = new boost::asio::serial_port(*ioservice);
+     sem_init(&cmdsemaphore, 0, 0);
+ }
+@@ -346,7 +343,7 @@
+         // reset the ioservice for the next commmand.
+         // (must be done during holding the mutex to avoid a race
+         // with the AbortAll() call.
+-        ioservice->reset();
++        ioservice->restart();
+         mutex.unlock();
+ 
+         switch (donow->c)
+@@ -502,7 +499,7 @@
+     struct asyncASIOCompletionHandler read_handler(&bytes, &handlerec);
+ 
+     // avoid that the io_service runs out of work as it auto-stops then.
+-    boost::asio::io_service::work work(*ioservice);
++    auto work = boost::asio::make_work_guard(*ioservice);
+ 
+     // timeout setup
+     try {
+@@ -551,7 +548,7 @@
+         }
+         sleep = true;
+         port->async_read_some(boost::asio::buffer(&buf, 1), read_handler);
+-        num = ioservice->run_one(ec);
++        num = ioservice->run_one();
+     } while (maxsleep != 0 && !result_timer && 0 == *(read_handler.bytes));
+ 
+     LOGTRACE(logger, "hack needed " << 5-maxsleep << "times.");
+@@ -574,7 +571,7 @@
+         return;
+     }
+     timer.cancel();
+-    ioservice->poll(ec);
++    ioservice->poll();
+     if (*read_handler.ec) {
+         if (*read_handler.ec != boost::asio::error::eof) {
+             LOGDEBUG(logger, "Async read failed with ec=" << *read_handler.ec
+@@ -625,7 +622,7 @@
+         // read a byte
+         port->async_read_some(boost::asio::buffer(&buf, 1), read_handler);
+ 
+-        size_t num = ioservice->run_one(ec);
++        size_t num = ioservice->run_one();
+ 
+         // ioservice error or timeout
+         if (num == 0 || result_timer) {
+@@ -639,7 +636,7 @@
+         }
+ 
+         timer.cancel();
+-        ioservice->poll(ec);
++        ioservice->poll();
+ 
+         // asio async read completed -- check for read error
+         if (*read_handler.ec) {
+@@ -757,7 +754,7 @@
+     boost::asio::async_write(*port, boost::asio::buffer(s), write_handler);
+ 
+     // run one of the scheduled services
+-    size_t num = ioservice->run_one(ec);
++    size_t num = ioservice->run_one();
+ 
+     // ioservice error or timeout
+     if (num == 0 || result_timer) {
+@@ -772,7 +769,7 @@
+ 
+     // cancel the timer, and catch the completion handler
+     timer.cancel();
+-    ioservice->poll(ec);
++    ioservice->poll();
+ 
+     if (*write_handler.ec) {
+         if (*write_handler.ec != boost::asio::error::eof) {
+--- a/src/Connections/CConnectSerialAsio.h
++++ b/src/Connections/CConnectSerialAsio.h
+@@ -41,9 +41,7 @@
+ 
+ #ifdef HAVE_COMMS_ASIOSERIAL
+ 
+-#include <boost/asio/serial_port.hpp>
+-#include <boost/asio/streambuf.hpp>
+-#include <boost/asio/io_service.hpp>
++#include <boost/asio.hpp>
+ #include <semaphore.h>
+ 
+ #include "interfaces/IConnect.h"
+@@ -98,7 +96,7 @@
+     virtual bool CanAccept();
+ 
+ private:
+-	boost::asio::io_service *ioservice;
++	boost::asio::io_context *ioservice;
+ 	boost::asio::serial_port *port;
+ 
+ 	char _cfg_characterlen;
+--- a/src/Connections/CConnectTCPAsio.cpp
++++ b/src/Connections/CConnectTCPAsio.cpp
+@@ -43,10 +43,7 @@
+ 
+ #include "configuration/CConfigHelper.h"
+ 
+-#include <boost/asio/write.hpp>
+-#include <boost/asio/io_service.hpp>
+-#include <boost/asio/ip/tcp.hpp>
+-#include <boost/asio/streambuf.hpp>
++#include <boost/asio.hpp>
+ 
+ #include <boost/scoped_ptr.hpp>
+ 
+@@ -106,7 +103,7 @@
+ 	// TODO check if one central would do that too...
+     configured_as_server = false;
+     _connected = false;
+-	ioservice = new io_service;
++	ioservice = new boost::asio::io_context;
+ 	sockt = new ip::tcp::socket(*ioservice);
+ 	sem_init(&cmdsemaphore, 0, 0);
+ }
+@@ -220,8 +217,10 @@
+ {
+ 	LOGTRACE(logger, "Starting helper thread");
+ 
+-    std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(*ioservice));
+-
++    auto work = std::make_unique
++        <boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
++            (boost::asio::make_work_guard(*ioservice));
++    
+     while (!IsTermRequested()) {
+         int syscallret;
+ 
+@@ -245,8 +244,11 @@
+         // must be done with mutex held due to a possible race with abortall.
+         if (ioservice->stopped()) {
+             LOGDEBUG(logger, "ioservice stopped");
+-            work.reset(new boost::asio::io_service::work(*ioservice));
+-            ioservice->reset();
++            work.reset();
++            work = std::make_unique
++                <boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
++                    (boost::asio::make_work_guard(*ioservice));
++            ioservice->restart();
+         }
+ 
+         mutex.unlock();
+@@ -341,11 +343,9 @@
+ 
+ 	boost::system::error_code ec;
+ 	ip::tcp::resolver resolver(*ioservice);
+-	ip::tcp::resolver::query query(strhost.c_str(), port);
+-
+-	// returns on error a default constructed iterator ...
+-	ip::tcp::resolver::iterator iter = resolver.resolve(query, ec);
+-	ip::tcp::resolver::iterator end; // ... which is a "End marker" itself.
++    auto results = resolver.resolve(strhost, port, ec);
++    auto iter = results.begin();
++    auto end  = results.end();
+ 
+     boost::asio::deadline_timer timer(*ioservice);
+     boost::posix_time::time_duration td = boost::posix_time::millisec(timeout);
+@@ -358,7 +358,7 @@
+         LOGDEBUG_SA(logger, __COUNTER__, "Connecting to " << endpoint);
+         handler_ec.clear();
+         sockt->async_connect(endpoint, connect_handler);
+-        size_t num = ioservice->run_one(ec);
++        size_t num = ioservice->run_one();
+         if (num == 0) {
+             LOGDEBUG(logger, __PRETTY_FUNCTION__ << " WTF: no service run!!!");
+         }
+@@ -391,7 +391,7 @@
+     }
+ 
+     timer.cancel(ec);
+-    ioservice->poll(ec);
++    ioservice->poll();
+ 
+     if (handler_ec) {
+         cmd->callback->addData(ICMD_ERRNO, -ECONNREFUSED);
+@@ -529,7 +529,7 @@
+ 		}
+ 		sleep = true;
+ 		sockt->async_read_some(boost::asio::buffer(&buf, 1), read_handler);
+-		num = ioservice->run_one(ec);
++		num = ioservice->run_one();
+ 	} while (maxsleep != 0 && !result_timer && 0 == read_bytes);
+ 
+ 	// ioservice error or timeout
+@@ -551,12 +551,12 @@
+         cmd->HandleCompletion();
+         timer.cancel(ec);
+         sockt->cancel(ec);
+-        ioservice->poll(ec);
++        ioservice->poll();
+         return;
+     }
+ 
+ 	timer.cancel();
+-	ioservice->poll(ec);
++	ioservice->poll();
+ 
+     if (read_handlerec || ioservice->stopped()) {
+         if (read_handlerec != boost::asio::error::eof) {
+@@ -680,7 +680,7 @@
+ 	boost::asio::async_write(*sockt, boost::asio::buffer(s), write_handler);
+ 
+ 	// run one of the scheduled services
+-	size_t num = ioservice->run_one(ec);
++	size_t num = ioservice->run_one();
+ 
+ 	// ioservice error or timeout
+ 	if (num == 0 || result_timer) {
+@@ -777,7 +777,7 @@
+     {
+        endpoint.reset(new ip::tcp::endpoint(ip::tcp::v6(),port));
+     } else {
+-        ip::address adr = ip::address::from_string(ipadr);
++       ip::address adr = ip::make_address(ipadr);
+        endpoint.reset(new ip::tcp::endpoint(adr,port));
+     }
+ 
+--- a/src/Connections/CConnectTCPAsio.h
++++ b/src/Connections/CConnectTCPAsio.h
+@@ -36,9 +36,8 @@
+ 
+ #ifdef HAVE_COMMS_ASIOTCPIO
+ 
+-#include <boost/asio/ip/tcp.hpp>
+-#include <boost/asio/streambuf.hpp>
+-#include <boost/asio/io_service.hpp>
++
++#include <boost/asio.hpp>
+ #include <semaphore.h>
+ 
+ #include "interfaces/IConnect.h"
+@@ -129,7 +128,7 @@
+     }
+ 
+ private:
+-    boost::asio::io_service *ioservice;
++    boost::asio::io_context *ioservice;
+     boost::asio::ip::tcp::socket *sockt;
+ 
+     virtual void _main(void);
+--- a/src/DataFilters/HTMLWriter/CHTMLWriter.cpp
++++ b/src/DataFilters/HTMLWriter/CHTMLWriter.cpp
+@@ -49,9 +49,9 @@
+ #include "configuration/ILogger.h"
+ 
+ #include "DataFilters/HTMLWriter/formatter/IFormater.h"
++#include <cfloat>
+ #include <string>
+ 
+-
+ static const char *Description_HTMLWriter_Intro =
+ "HTMLWriter Logger\n"
+ "As the name suggests already, this logger creates HTML file which then can be "
+--- a/src/Inverters/SputnikEngineering/CInverterSputnikSSeries.cpp
++++ b/src/Inverters/SputnikEngineering/CInverterSputnikSSeries.cpp
+@@ -68,6 +68,7 @@
+ #include "Inverters/SputnikEngineering/SputnikCommand/BackoffStrategies/CSputnikCmdBOTimed.h"
+ #include "Inverters/SputnikEngineering/SputnikCommand/BackoffStrategies/CSputnikCmdBOIfSupported.h"
+ 
++#include <cfloat>
+ #include <errno.h>
+ 
+ std::string i_need_a_stdstring;
